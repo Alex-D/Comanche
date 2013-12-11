@@ -1,0 +1,16 @@
+#!/usr/bin/perl
+
+# Crée un fork et tue le père pour rendre la main
+$pid = fork;
+if($pid != 0){
+	# Pipe vers me fils pouvoir manipuler le
+	# processus en arrière plan depuis la commande
+	
+
+	# On tue le père pour rendre la main
+	exit 0;
+}
+
+
+# TODO: Lecture de la configuration
+
