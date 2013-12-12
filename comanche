@@ -1,6 +1,5 @@
 #!/usr/bin/perl
 
-use POSIX qw(mkfifo);
 
 # Quitte s'il manque le paramètre
 die("Option nécessaire parmis : start, stop, status") if($#ARGV < 0);
@@ -13,41 +12,37 @@ $port = 8000;
 $default = "/var/www/index.html";
 $logfile = "/var/log/comanche.log";
 
-# Chemin du fifo
-$fifo = "comanche.$port";
+# Chemin du pid du fils
+$pidfile = ".pid";
 
 
 
 if($commande eq "start"){
 
-	# Pipe vers me fils pouvoir manipuler le
-    # processus en arrière plan depuis la commande
-    mkfifo($fifo, 0644) || die("Impossible de créer le tube fichier ($fifo)");
-
 	# Crée un fork et tue le père pour rendre la main
 	$pid = fork;
 	if($pid != 0){
-		# On tue le père
+		# Stock le pid du fils
+		open(PID, ">$pidfile");
+		print PID $pid;
+		close(PID);
+
+		# Tue le père
 		exit 0;
 	}
 	
 	# TODO: Traitement des requêtes (fils background)
-	open(FIFO, $fifo);
-	while(1){
-		
-	}
+	
 	
 } elsif($commande eq "status"){
 	
 	# TODO: status
-	open(FIFO, ">>$fifo");
-	print FIFO "status";
+	
 
 } elsif($commande eq "stop"){
 
 	# TODO: stop
-	
-	unlink($fifo);
+	unlink($pidfile);
 
 } else {
 	die("Paramètre non pris en charge. Paramètres autorisés : start, stop, status");
