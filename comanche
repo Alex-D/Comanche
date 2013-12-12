@@ -1,16 +1,72 @@
 #!/usr/bin/perl
 
-# Crée un fork et tue le père pour rendre la main
-$pid = fork;
-if($pid != 0){
-	# Pipe vers me fils pouvoir manipuler le
-	# processus en arrière plan depuis la commande
-	
+use POSIX qw(mkfifo);
 
-	# On tue le père pour rendre la main
-	exit 0;
-}
+# Quitte s'il manque le paramètre
+die("Option nécessaire parmis : start, stop, status") if($#ARGV < 0);
 
+# Récupère la commande
+$commande = $ARGV[0]; # start, stop, status
 
 # TODO: Lecture de la configuration
+$port = 8000;
+$default = "/var/www/index.html";
+$logfile = "/var/log/comanche.log";
 
+# Chemin du fifo
+$fifo = "comanche.$port";
+
+
+
+if($commande eq "start"){
+
+	# Pipe vers me fils pouvoir manipuler le
+    # processus en arrière plan depuis la commande
+    mkfifo($fifo, 0644) || die("Impossible de créer le tube fichier ($fifo)");
+
+	# Crée un fork et tue le père pour rendre la main
+	$pid = fork;
+	if($pid != 0){
+		# On tue le père
+		exit 0;
+	}
+	
+	# TODO: Traitement des requêtes (fils background)
+	
+
+} elsif($commande eq "status"){
+	
+	# TODO: status
+	
+
+} elsif($commande eq "stop"){
+
+	# TODO: stop
+	
+	unlink($fifo);
+
+} else {
+	die("Paramètre non pris en charge. Paramètres autorisés : start, stop, status");
+}
+	
+	
+	
+	
+	
+	
+# Ajoute une ligne au log de la forme
+# <date>;<type>;<machine>;<requête>;<projection>;<réponse>;
+sub log {
+	open(LOG, ">>$logfile");
+
+	if(@_[0] == "start" || @_[0] == "stop"){
+		@line = (localtime(time), @_[0], "local", $port,,,);
+	} else {
+		@line = (localtime(time), @_);
+	}
+
+	local $, = ";";
+	print @line;
+	
+	close(LOG);
+}
