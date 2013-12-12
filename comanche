@@ -32,12 +32,16 @@ if($commande eq "start"){
 	}
 	
 	# TODO: Traitement des requêtes (fils background)
+	open(FIFO, $fifo);
+	while(1){
+		
+	}
 	
-
 } elsif($commande eq "status"){
 	
 	# TODO: status
-	
+	open(FIFO, ">>$fifo");
+	print FIFO "status";
 
 } elsif($commande eq "stop"){
 
