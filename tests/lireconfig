@@ -1,0 +1,20 @@
+#!/usr/bin/perl
+
+$file = $ARGV[0];
+
+open(CONFIG, "$file") || die("Impossible de charger le fichier");
+
+while(<CONFIG>) {
+    if(/set\s+(.+)\s+(.+)/){
+	${$1} = $2;
+    }
+}
+
+close(CONFIG);
+
+print $port."\n";
+print $default."\n";
+print $index."\n";
+print $clients."\n";
+print $logfile."\n";
+print $basedir."\n";
