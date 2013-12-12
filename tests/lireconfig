@@ -2,36 +2,15 @@
 
 $file = $ARGV[0];
 
-open(CONFIG, "<$file") || die("Impossible de charger le fichier");
-@content = <CONFIG>;
+open(CONFIG, "$file") || die("Impossible de charger le fichier");
+
+while(<CONFIG>) {
+    if(/set\s+(.+)\s+(.+)/){
+	${$1} = $2;
+    }
+}
+
 close(CONFIG);
-
-#print @content;
-
-for (@content) {
-
-    if (/^set/) {
-	@set[$i++] = $_;
-    }
-}
-
-for (@set) {
-    
-    if (/set\s+port\s+(\d+)/) {
-	$port = $1;
-    } elsif (/set\s+default\s+(.+)/) {
-	$default = $1;
-    } elsif (/set\s+index\s+(.+)/) {
-	$index = $1;
-    } elsif (/set\s+clients\s+(.+)/) {
-	$clients = $1;
-    } elsif (/set\s+logfile\s+(.+)/) {
-	$logfile = $1;
-    } elsif (/set\s+basedir\s+(.+)/) {
-	$basedir = $1;
-    }
-
-}
 
 print $port."\n";
 print $default."\n";
