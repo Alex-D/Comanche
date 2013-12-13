@@ -7,10 +7,18 @@ die("Option nécessaire parmis : start, stop, status") if($#ARGV < 0);
 # Récupère la commande
 $commande = $ARGV[0]; # start, stop, status
 
-# TODO: Lecture de la configuration
-$port = 8000;
-$default = "/var/www/index.html";
-$logfile = "/var/log/comanche.log";
+# Lecture de la configuration
+open(CONFIG, "$file") || die("Impossible de charger le fichier");
+while(<CONFIG>) {
+    if(/^set\s+(.+)\s+(.+)/){
+		${$1} = $2;
+    } elsif (/^route\s+(.+?)\s+to\s+(.+)/) {
+		$route{$1} = $2;
+    } elsif (/^exec\s+(.+?)\s+from\s+(.+)/) {
+		$exe{$1} = $2;
+    } 
+}
+close(CONFIG);
 
 # Chemin du pid du fils
 $pidfile = ".pid";
