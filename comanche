@@ -10,17 +10,7 @@ $commande = $ARGV[0]; # start, stop, status
 
 
 # Lecture de la configuration
-open(CONFIG, "$file") || die("Impossible de charger le fichier");
-while(<CONFIG>) {
-    if(/^set\s+(.+)\s+(.+)/){
-		${$1} = $2;
-    } elsif (/^route\s+(.+?)\s+to\s+(.+)/) {
-		$route{$1} = $2;
-    } elsif (/^exec\s+(.+?)\s+from\s+(.+)/) {
-		$exe{$1} = $2;
-    } 
-}
-close(CONFIG);
+chargerconfig();
 
 
 # Chemin du pid du fils
@@ -41,16 +31,18 @@ if($commande eq "start"){
 		print PID $pid;
 		close(PID);
 
+		log("start");
+
 		# Tue le père
 		exit 0;
 	}
 
 
 	# Traitement des signaux
-	# 	9 : KILL = stop
-	$SIG{9} = \&stop;
-	#	10 : USR = status
-	$SIG{10} = \&status;
+	#   KILL => stop
+	$SIG{KILL} = \&stop;
+	#   USR1 => status
+	$SIG{USR1} = \&status;
 
 	
 	# TODO: Traitement des requêtes (fils background)
@@ -58,12 +50,14 @@ if($commande eq "start"){
 	
 } elsif($commande eq "status"){
 	# status
-	kill 10, pidserv() || die("Le serveur n'est pas lancé\n");
+	kill USR1, pidserv() || die("Le serveur n'est pas lancé\n");
 } elsif($commande eq "stop"){
 	# stop
-	kill 9, pidserv() || die("Le serveur n'est pas lancé\n");
+	kill KILL, pidserv() || die("Le serveur n'est pas lancé\n");
 
 	unlink($pidfile);
+} elsif($commande eq "reload"){
+	chargerconfig();
 } else {
 	die("Paramètre non pris en charge. Paramètres autorisés : start, stop, status");
 }
@@ -71,11 +65,43 @@ if($commande eq "start"){
 
 
 
+# Charge la configuration
+sub chargerconfig {
+	# Vide la configuration
+	undef %config;
+
+	# Charge la configuration depuis le fichier comanche.conf
+	open(CONFIG, "comanche.conf") || die("Impossible de charger le fichier");
+	while(<CONFIG>) {
+		if(/^set\s+(.+)\s+(.+)/){
+			$cle 	= $1;
+			$valeur = $2;
+
+			if($cle =~ /port/){			# Validation du port TCP
+				die("[Erreur configuration] Port invalide") unless($valeur =~ /[\d+]/ && $valeur >= 1 && $valeur <= 65535);
+			} elsif($cle =~ /clients/){	# Validation du nombre de clients
+				die("[Erreur configuration] Nombre de clients invalide") unless($valeur =~ /\d+/);
+			} elsif($cle =~ /default/){ # Validation du fichier par défaut
+				die("[Erreur configuration] Fichier default inaccessible") unless(-f $valeur);
+			} elsif($cle =~ /index/){	# Validation du fichier d'index
+				die("[Erreur configuration] Fichier index inaccessible") unless(-f $valeur);
+			}
+
+			$config{"global"}{$cle} = $valeur;
+		} elsif (/^route\s+(.+?)\s+to\s+(.+)/) {
+			$config{"routes"}{$1} = $2;
+		} elsif (/^exec\s+(.+?)\s+from\s+(.+)/) {
+			$config{"exec"}{$1} = $2;
+		} 
+	}
+	close(CONFIG);
+}
+
 # Récupère le pid du fils
 sub pidserv {
 	open(FILS, "$pidfile");
-    $pid = <FILS>;
-    close(FILS);
+	$pid = <FILS>;
+	close(FILS);
 
 	return $pid;
 }
@@ -84,13 +110,14 @@ sub pidserv {
 # Arrête le serveur
 sub stop {
 	while(wait != -1);
+	log("stop");
 	exit 0;
 }
 
 
 # Affiche le status du serveur
 sub status {
-	$" = ", ";
+	local $, = ", ";
 	print "PID du processus principal : $$\n";
 	print "Nombre de requêtes :\n";
 	print "\treçues : $reqrecues\n";
@@ -105,8 +132,8 @@ sub status {
 sub log {
 	open(LOG, ">>$logfile");
 
-	if(@_[0] == "start" || @_[0] == "stop"){
-		@line = (localtime(time), @_[0], "local", $port,,,);
+	if($_[0] == "start" || $_[0] == "stop"){
+		@line = (localtime(time), $_[0], "local", $conf{"port"},,,);
 	} else {
 		@line = (localtime(time), @_);
 	}
