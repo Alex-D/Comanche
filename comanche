@@ -4,8 +4,10 @@
 # Quitte s'il manque le paramètre
 die("Option nécessaire parmis : start, stop, status") if($#ARGV < 0);
 
+
 # Récupère la commande
 $commande = $ARGV[0]; # start, stop, status
+
 
 # Lecture de la configuration
 open(CONFIG, "$file") || die("Impossible de charger le fichier");
@@ -20,13 +22,17 @@ while(<CONFIG>) {
 }
 close(CONFIG);
 
+
 # Chemin du pid du fils
 $pidfile = ".pid";
 
 
+# Liste des pid des fils
+@fils = ();
+
+
 
 if($commande eq "start"){
-
 	# Crée un fork et tue le père pour rendre la main
 	$pid = fork;
 	if($pid != 0){
@@ -51,17 +57,13 @@ if($commande eq "start"){
 
 	
 } elsif($commande eq "status"){
-	
-	# TODO: status
+	# status
 	kill 10, pidserv() || die("Le serveur n'est pas lancé\n");
-
 } elsif($commande eq "stop"){
-
-	# TODO: stop
+	# stop
 	kill 9, pidserv() || die("Le serveur n'est pas lancé\n");
 
 	unlink($pidfile);
-
 } else {
 	die("Paramètre non pris en charge. Paramètres autorisés : start, stop, status");
 }
@@ -81,13 +83,20 @@ sub pidserv {
 
 # Arrête le serveur
 sub stop {
+	while(wait != -1);
 	exit 0;
 }
 
 
 # Affiche le status du serveur
 sub status {
-	print "Etat du serveur... \n";
+	$" = ", ";
+	print "PID du processus principal : $$\n";
+	print "Nombre de requêtes :\n";
+	print "\treçues : $reqrecues\n";
+	print "\ttraitées : $reqtraitees\n";
+	print "Nombre d'ouvriers actifs : $#fils\n";
+	print @fils;
 }
 
 
