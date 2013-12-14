@@ -2,7 +2,7 @@
 
 
 # Quitte s'il manque le paramètre
-die("Option nécessaire parmis : start, stop, status") if($#ARGV < 0);
+die("Option nécessaire parmis : start, stop, status, reload") if($#ARGV < 0);
 
 
 # Récupère la commande
@@ -11,10 +11,6 @@ $commande = $ARGV[0]; # start, stop, status
 
 # Lecture de la configuration
 chargerconfig();
-
-
-# Chemin du pid du fils
-$pidfile = ".pid";
 
 
 # Liste des pid des fils
@@ -59,7 +55,7 @@ if($commande eq "start"){
 } elsif($commande eq "reload"){
 	chargerconfig();
 } else {
-	die("Paramètre non pris en charge. Paramètres autorisés : start, stop, status");
+	die("Paramètre non pris en charge. Paramètres autorisés : start, stop, status, reload");
 }
 
 
@@ -97,9 +93,10 @@ sub chargerconfig {
 	close(CONFIG);
 }
 
+
 # Récupère le pid du fils
 sub pidserv {
-	open(FILS, "$pidfile");
+	open(FILS, ".pid");
 	$pid = <FILS>;
 	close(FILS);
 
