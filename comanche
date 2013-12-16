@@ -59,7 +59,16 @@ if ($commande eq "start") {
 		autoflush 1;
 
 		if ($#fils >= $config{"global"}{"clients"}) {
-			print "Trop de connexions"; # TODO: rendre compatible HTTP1.1
+			printf "HTTP/1.1 503 Service Unavailable\r\n";
+			printf "Content-Type: text/html\r\n";
+			printf "Content-Length: 111\r\n\r\n"; # TODO: compter caractères
+
+			printf "<html><body>";
+			printf "<h1>503 Service Unavailable</h1>";
+			printf "<h2>Trop de connexions simultannées, réessayez plus tard</h2>";
+			printf "HTTP 1.1 requests must include the Host: header.";
+			printf "</body></html>";
+
 			close CLIENT;
 		} else {
 			$pid = fork;
