@@ -1,5 +1,7 @@
 #!/usr/bin/perl
 
+use Socket;
+
 
 # Quitte s'il manque le paramètre
 die("Option nécessaire parmis : start, stop, status, reload\n") if($#ARGV < 0);
@@ -11,6 +13,7 @@ $commande = $ARGV[0]; # start, stop, status
 
 # Lecture de la configuration
 chargerconfig();
+$pidfile = ".pid";
 
 
 # Liste des pid des fils
@@ -18,10 +21,10 @@ chargerconfig();
 
 
 
-if($commande eq "start"){
+if ($commande eq "start") {
 	# Crée un fork et tue le père pour rendre la main
 	$pid = fork;
-	if($pid != 0){
+	if ($pid != 0) {
 		# Stock le pid du fils
 		open(PID, ">$pidfile");
 		print PID $pid;
@@ -41,18 +44,47 @@ if($commande eq "start"){
 	$SIG{USR1} = \&status;
 
 	
-	# TODO: Traitement des requêtes (fils background)
+	# Lancement de la socket
+	socket(SERVEUR, PF_INET, SOCK_STREAM, getprotobyname('tcp'));
+	setsockopt(SERVEUR, SOL_SOCKET, SO_RUSEADDR, 1);
 
+	$addr = sockaddr_in($config{"global"}{"port"}, INADDR_ANY) || die("sockaddr_in");
+	bind(SERVEUR, $addr) || die("bind error");
+	listen(SERVEUR, SOMAXCONN) || die("listen error");
+
+	while (accept(CLIENT, SERVEUR)) {
+		select CLIENT;
+		autoflush 1;
+
+		if ($fils >= $config{"global"}{"clients"}) {
+			print "Trop de connexions"; # TODO: rendre compatible HTTP1.1
+			close CLIENT;
+		} else {
+			$pid = fork;
+			
+			if ($pid == 0){
+
+				# TODO: traiter la requête
+
+				# addlog("get-X", IP, <requête>, <projection = chemin>, <code HTTP>);
+
+				close CLIENT;
+				exit 0;
+			}
+		}
+	}
+
+	close SERVEUR;
 	
-} elsif($commande eq "status"){
+} elsif ($commande eq "status") {
 	# status
 	kill USR1, pidserv() || die("Le serveur n'est pas lancé\n");
-} elsif($commande eq "stop"){
+} elsif ($commande eq "stop") {
 	# stop
 	kill KILL, pidserv() || die("Le serveur n'est pas lancé\n");
 
 	unlink($pidfile);
-} elsif($commande eq "reload"){
+} elsif ($commande eq "reload") {
 	chargerconfig();
 } else {
 	die("Paramètre non pris en charge. Paramètres autorisés : start, stop, status, reload\n");
