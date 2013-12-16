@@ -1,0 +1,7 @@
+#!/usr/bin/perl
+
+autoflush STDOUT 1;
+
+print "$$ démarre\n";
+sleep 3;
+print "$$ termine\n";

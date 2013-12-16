@@ -1,0 +1,20 @@
+#!/usr/bin/perl
+
+use Socket;
+
+
+socket(SERVEUR, PF_INET, SOCK_STREAM, getprotobyname('tcp'));
+setsockopt(SERVEUR, SOL_SOCKET, SO_RUSEADDR, 1);
+
+$addr = sockaddr_in("3000", INADDR_ANY) || die("sockaddr_in");
+bind(SERVEUR, $addr) || die("bind error");
+listen(SERVEUR, SOMAXCONN) || die("listen error");
+
+while (1) {
+	accept(CLIENT, SERVEUR) || die("accept error");
+
+	printf CLIENT "Bonjour\n" for(1..$ARGV[0]);
+
+	close CLIENT;
+}
+close SERVEUR;

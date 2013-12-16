@@ -1,0 +1,21 @@
+#!/usr/bin/perl
+
+use POSIX ":sys_wait_h";
+
+$max = $ARGV[0] - 1;
+
+while(<STDIN>){
+	updateFils();	
+	print "Attente... ($fils en cours)\n" if($fils > $max);
+	updateFils() while($fils > $max);
+
+	$pid = fork;
+	exec "./rien" if($pid == 0);
+
+	$fils += 1;
+	print "$pid\n";
+}
+
+sub updateFils {
+    $fils -= 1 while(waitpid(-1, &WNOHANG) > 0);
+}
