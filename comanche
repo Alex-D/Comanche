@@ -27,7 +27,7 @@ if($commande eq "start"){
 		print PID $pid;
 		close(PID);
 
-		log("start");
+		addlog("start");
 
 		# Tue le père
 		exit 0;
@@ -106,8 +106,8 @@ sub pidserv {
 
 # Arrête le serveur
 sub stop {
-	while(wait != -1);
-	log("stop");
+	while(wait != -1){}
+	addlog("stop");
 	exit 0;
 }
 
@@ -126,7 +126,7 @@ sub status {
 
 # Ajoute une ligne au log de la forme
 # <date>;<type>;<machine>;<requête>;<projection>;<réponse>;
-sub log {
+sub addlog {
 	open(LOG, ">>$logfile");
 
 	if($_[0] == "start" || $_[0] == "stop"){
