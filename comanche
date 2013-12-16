@@ -2,7 +2,7 @@
 
 
 # Quitte s'il manque le paramètre
-die("Option nécessaire parmis : start, stop, status, reload") if($#ARGV < 0);
+die("Option nécessaire parmis : start, stop, status, reload\n") if($#ARGV < 0);
 
 
 # Récupère la commande
@@ -55,7 +55,7 @@ if($commande eq "start"){
 } elsif($commande eq "reload"){
 	chargerconfig();
 } else {
-	die("Paramètre non pris en charge. Paramètres autorisés : start, stop, status, reload");
+	die("Paramètre non pris en charge. Paramètres autorisés : start, stop, status, reload\n");
 }
 
 
@@ -67,20 +67,20 @@ sub chargerconfig {
 	undef %config;
 
 	# Charge la configuration depuis le fichier comanche.conf
-	open(CONFIG, "comanche.conf") || die("Impossible de charger le fichier");
+	open(CONFIG, "comanche.conf") || die("Impossible de charger le fichier de configuration\n");
 	while(<CONFIG>) {
 		if(/^set\s+(.+)\s+(.+)/){
 			$cle 	= $1;
 			$valeur = $2;
 
 			if($cle =~ /port/){			# Validation du port TCP
-				die("[Erreur configuration] Port invalide") unless($valeur =~ /[\d+]/ && $valeur >= 1 && $valeur <= 65535);
+				die("[Erreur configuration] Port invalide\n") unless($valeur =~ /[\d+]/ && $valeur >= 1 && $valeur <= 65535);
 			} elsif($cle =~ /clients/){	# Validation du nombre de clients
-				die("[Erreur configuration] Nombre de clients invalide") unless($valeur =~ /\d+/);
+				die("[Erreur configuration] Nombre de clients invalide\n") unless($valeur =~ /\d+/);
 			} elsif($cle =~ /default/){ # Validation du fichier par défaut
-				die("[Erreur configuration] Fichier default inaccessible") unless(-f $valeur);
+				die("[Erreur configuration] Fichier default inaccessible\n") unless(-f $valeur);
 			} elsif($cle =~ /index/){	# Validation du fichier d'index
-				die("[Erreur configuration] Fichier index inaccessible") unless(-f $valeur);
+				die("[Erreur configuration] Fichier index inaccessible\n") unless(-f $valeur);
 			}
 
 			$config{"global"}{$cle} = $valeur;
