@@ -53,10 +53,12 @@ if ($commande eq "start") {
 	listen(SERVEUR, SOMAXCONN) || die("listen error");
 
 	while (accept(CLIENT, SERVEUR)) {
+		$reqrecues += 1;
+
 		select CLIENT;
 		autoflush 1;
 
-		if ($fils >= $config{"global"}{"clients"}) {
+		if ($#fils >= $config{"global"}{"clients"}) {
 			print "Trop de connexions"; # TODO: rendre compatible HTTP1.1
 			close CLIENT;
 		} else {
@@ -71,6 +73,8 @@ if ($commande eq "start") {
 				close CLIENT;
 				exit 0;
 			}
+
+			$reqtraitees += 1;
 		}
 	}
 
