@@ -45,10 +45,10 @@ if ($commande eq "start") {
 
 
 	# Traitement des signaux
-	#   KILL => stop
-	$SIG{KILL} = \&stop;
 	#   USR1 => status
 	$SIG{USR1} = \&status;
+	#   KILL => stop
+	$SIG{KILL} = \&stop;
 
 	
 	# Lancement de la socket
@@ -86,13 +86,9 @@ if ($commande eq "start") {
 			if ($pid == 0){
 				# TODO: traiter la requête
 				$req = <CLIENT>;
-				while(<CLIENT>){}
+				while(<CLIENT> =~ /^\r?\n/){}
 
-				printf "$req";
-
-				# <CLIENT> =~ /GET(?i)\s+((?:\/[a-z0-9]+)*\/[a-z0-9]*\.[a-z]+)\\r\\nhttp\/1.1\\r\\nhost:\s+[a-z0-9\.]{2,}/ || die("FUCK"); # badrequest;
-				$req =~ /(?-i)GET(?i)\s(\/(?:.*))\sHTTP\/1\.1/ || die("WTF ?");
-				
+				$req =~ /(?-i)GET(?i)\s(\/(?:.*))\sHTTP\/1\.1/ || badrequest();
 				$req = $1;
 
 				addlog("GET", "IP", $req, "", "");
@@ -111,9 +107,9 @@ if ($commande eq "start") {
 				close CLIENT;
 
 				exit 0;
-			} else {
-				push(@fils, $pid);
 			}
+
+			push(@fils, $pid);
 
 			$reqtraitees += 1;
 		}
