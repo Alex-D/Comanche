@@ -85,15 +85,22 @@ if ($commande eq "start") {
 			
 			if ($pid == 0){
 				# TODO: traiter la requête
+				$req = <CLIENT>;
+				while(<CLIENT>){}
 
-				# <CLIENT> =~  || badrequest;
+				printf "$req";
 
+				# <CLIENT> =~ /GET(?i)\s+((?:\/[a-z0-9]+)*\/[a-z0-9]*\.[a-z]+)\\r\\nhttp\/1.1\\r\\nhost:\s+[a-z0-9\.]{2,}/ || die("FUCK"); # badrequest;
+				$req =~ /(?-i)GET(?i)\s(\/(?:.*))\sHTTP\/1\.1/ || die("WTF ?");
+				
+				$req = $1;
+
+				addlog("GET", "IP", $req, "", "");
 
 				# addlog("get-X", IP, <requête>, <projection = chemin>, <code HTTP>);
 
 				$reponse  = "<html><body>" .
 							"<h1>404 Not Found</h1>" .
-							"<h2>Pas encore implémenté</h2>" .
 							"</body></html>";
 
 				printf CLIENT   "HTTP/1.1 404 Not Found\r\n" .
@@ -134,6 +141,24 @@ if ($commande eq "start") {
 }
 
 
+
+
+# Réponse en cas de requête invalide
+sub badrequest {
+	$reponse  = "<html><body>" .
+				"<h1>400 Bad Request</h1>" .
+				"<h2>Requête invalide</h2>" .
+				"</body></html>";
+
+	printf CLIENT   "HTTP/1.1 400 Bad Request\r\n" .
+					"Content-Type: text/html; charset=utf-8\r\n" .
+					"Content-Length: " . length($reponse) . "\r\n\r\n" .
+					$reponse;
+
+	close CLIENT;
+
+	exit 0;
+}
 
 
 # Charge la configuration
@@ -202,8 +227,8 @@ sub status {
 sub addlog {
 	open(LOG, ">>".$config{"global"}{"logfile"});
 
-	if($_[0] == "start" || $_[0] == "stop"){
-		@line = (date(), $_[0], "local", $conf{"port"},"","","");
+	if($_[0] eq "start" || $_[0] eq "stop"){
+		@line = (date(), $_[0], "local", $conf{"port"}, "", "", "");
 	} else {
 		@line = (date(), @_);
 	}
