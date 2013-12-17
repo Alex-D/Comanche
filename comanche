@@ -37,11 +37,11 @@ if ($commande eq "start") {
 		print PID $pid;
 		close(PID);
 
-		addlog("start");
-
 		# Tue le père
 		exit 0;
 	}
+
+	addlog("start");
 
 
 	# Traitement des signaux
@@ -63,21 +63,19 @@ if ($commande eq "start") {
 	printf "Serveur lancé sur le port $port\n";
 
 	while (accept(CLIENT, SERVEUR)) {
-		printf "Nouveau client\n";
-
 		$reqrecues += 1;
 
 		autoflush CLIENT 1;
 
 		if ($#fils >= $config{"global"}{"clients"}) {
-			$reponse  = "<html><body>" +
-						"<h1>503 Service Unavailable</h1>" +
-						"<h2>Trop de connexions simultannées, réessayez plus tard</h2>" +
+			$reponse  = "<html><body>" .
+						"<h1>503 Service Unavailable</h1>" .
+						"<h2>Trop de connexions simultannées, réessayez plus tard</h2>" .
 						"</body></html>";
 
-			printf CLIENT 	"HTTP/1.1 503 Service Unavailable\r\n" +
-				  			"Content-Type: text/html\r\n" +
-			 				"Content-Length: " + length($reponse) + "\r\n\r\n";
+			printf CLIENT 	"HTTP/1.1 503 Service Unavailable\r\n" .
+				  			"Content-Type: text/html\r\n" .
+			 				"Content-Length: " . length($reponse) . "\r\n\r\n";
 
 			printf $response;
 
@@ -88,16 +86,19 @@ if ($commande eq "start") {
 			if ($pid == 0){
 				# TODO: traiter la requête
 
+				# <CLIENT> =~  || badrequest;
+
+
 				# addlog("get-X", IP, <requête>, <projection = chemin>, <code HTTP>);
 
-				$reponse  = "<html><body>" +
-							"<h1>404 Not Found</h1>" +
-							"<h2>Pas encore implémenté</h2>" +
+				$reponse  = "<html><body>" .
+							"<h1>404 Not Found</h1>" .
+							"<h2>Pas encore implémenté</h2>" .
 							"</body></html>";
 
-				printf CLIENT   "HTTP/1.1 404 Not Found\r\n" +
-								"Content-Type: text/html\r\n" +
-								"Content-Length: " + length($reponse) + "\r\n\r\n" +
+				printf CLIENT   "HTTP/1.1 404 Not Found\r\n" .
+								"Content-Type: text/html; charset=utf-8\r\n" .
+								"Content-Length: " . length($reponse) . "\r\n\r\n" .
 								$reponse;
 
 				close CLIENT;
@@ -121,6 +122,8 @@ if ($commande eq "start") {
 	kill KILL, pidserv() || die("Le serveur n'est pas lancé\n");
 
 	unlink($pidfile);
+
+	addlog("stop");
 } elsif ($commande eq "reload") {
 	# reload
 	pidserv() || die("Le serveur n'est pas lancé\n");
@@ -178,7 +181,6 @@ sub pidserv {
 sub stop {
 	while(wait != -1){}
 	close SERVEUR;
-	addlog("stop");
 	exit 0;
 }
 
@@ -198,16 +200,23 @@ sub status {
 # Ajoute une ligne au log de la forme
 # <date>;<type>;<machine>;<requête>;<projection>;<réponse>;
 sub addlog {
-	open(LOG, ">>"+$config{"global"}{"logfile"});
+	open(LOG, ">>".$config{"global"}{"logfile"});
 
 	if($_[0] == "start" || $_[0] == "stop"){
-		@line = (localtime(time), $_[0], "local", $conf{"port"},,,);
+		@line = (date(), $_[0], "local", $conf{"port"},"","","");
 	} else {
-		@line = (localtime(time), @_);
+		@line = (date(), @_);
 	}
 
 	local $, = ";";
-	print LOG @line;
+	print LOG @line,"\n";
 	
 	close(LOG);
+}
+
+
+# Formate la date de façon lisible
+sub date {
+	($s, $min, $h, $j, $m, $a) = localtime(time);
+	return "$h:$min:$s $j/$m/" . ($a+1900);
 }
