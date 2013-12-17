@@ -56,18 +56,20 @@ if ($commande eq "start") {
 		$reqrecues += 1;
 
 		select CLIENT;
-		autoflush 1;
+		autoflush CLIENT 1;
 
 		if ($#fils >= $config{"global"}{"clients"}) {
+			$reponse  = "<html><body>" +
+						"<h1>503 Service Unavailable</h1>" +
+						"<h2>Trop de connexions simultannées, réessayez plus tard</h2>" +
+						"HTTP 1.1 requests must include the Host: header." +
+						"</body></html>";
+
 			printf "HTTP/1.1 503 Service Unavailable\r\n";
 			printf "Content-Type: text/html\r\n";
-			printf "Content-Length: 111\r\n\r\n"; # TODO: compter caractères
+			printf "Content-Length: length($reponse)\r\n\r\n";
 
-			printf "<html><body>";
-			printf "<h1>503 Service Unavailable</h1>";
-			printf "<h2>Trop de connexions simultannées, réessayez plus tard</h2>";
-			printf "HTTP 1.1 requests must include the Host: header.";
-			printf "</body></html>";
+			printf $response;
 
 			close CLIENT;
 		} else {
