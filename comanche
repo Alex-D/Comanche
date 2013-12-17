@@ -16,6 +16,11 @@ $pidfile = ".pid";
 chargerconfig();
 
 
+# Compteurs
+$reqrecues 		= 0;
+$reqtraitees 	= 0;
+
+
 # Liste des pid des fils
 @fils = ();
 
@@ -55,22 +60,24 @@ if ($commande eq "start") {
 	bind(SERVEUR, $addr) || die("Le port $port est déjà utilisé\n");
 	listen(SERVEUR, SOMAXCONN) || die("listen error");
 
+	printf "Serveur lancé sur le port $port\n";
+
 	while (accept(CLIENT, SERVEUR)) {
+		printf "Nouveau client\n";
+
 		$reqrecues += 1;
 
-		select CLIENT;
 		autoflush CLIENT 1;
 
 		if ($#fils >= $config{"global"}{"clients"}) {
 			$reponse  = "<html><body>" +
 						"<h1>503 Service Unavailable</h1>" +
 						"<h2>Trop de connexions simultannées, réessayez plus tard</h2>" +
-						"HTTP 1.1 requests must include the Host: header." +
 						"</body></html>";
 
-			printf "HTTP/1.1 503 Service Unavailable\r\n";
-			printf "Content-Type: text/html\r\n";
-			printf "Content-Length: " + length($reponse) + "\r\n\r\n";
+			printf CLIENT 	"HTTP/1.1 503 Service Unavailable\r\n" +
+				  			"Content-Type: text/html\r\n" +
+			 				"Content-Length: " + length($reponse) + "\r\n\r\n";
 
 			printf $response;
 
@@ -79,13 +86,25 @@ if ($commande eq "start") {
 			$pid = fork;
 			
 			if ($pid == 0){
-
 				# TODO: traiter la requête
 
 				# addlog("get-X", IP, <requête>, <projection = chemin>, <code HTTP>);
 
+				$reponse  = "<html><body>" +
+							"<h1>404 Not Found</h1>" +
+							"<h2>Pas encore implémenté</h2>" +
+							"</body></html>";
+
+				printf CLIENT   "HTTP/1.1 404 Not Found\r\n" +
+								"Content-Type: text/html\r\n" +
+								"Content-Length: " + length($reponse) + "\r\n\r\n" +
+								$reponse;
+
 				close CLIENT;
+
 				exit 0;
+			} else {
+				push(@fils, $pid);
 			}
 
 			$reqtraitees += 1;
