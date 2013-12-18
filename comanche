@@ -47,8 +47,8 @@ if ($commande eq "start") {
     # Traitement des signaux
     #   USR1 => status
     $SIG{USR1} = \&status;
-    #   KILL => stop
-    $SIG{KILL} = \&stop;
+    #   QUIT => stop
+    $SIG{QUIT} = \&stop;
 
     
     # Lancement de la socket
@@ -89,23 +89,34 @@ if ($commande eq "start") {
             if ($pid == 0){
                 # Traitement de la requête
                 $req = <CLIENT>;
-                while(<CLIENT> =~ /^\r?\n/){}
+                while (<CLIENT> =~ /^\r?\n/) {}
 
-                $req =~ /(?-i)GET(?i)\s(\/(?:.*))\sHTTP\/1\.1/ || badrequest();
+                $req =~ /(?-i)GET(?i)\s(\/(?:.*))\sHTTP\/1\.1/ || badrequest;
                 $req = $1;
 
+                # Si le chemin existe
+                if ($req =~ /nematchpas/) {
+                    # TODO: Recherche de la page correspondant à la requête
+                    # $reponse = readfile(LE_FICHIER);
 
-                # TODO: Recherche de la page correspondant à la requête
-                # $reponse = readfile(LE_FICHIER);
+                    # On envoie la réponse
+                    printf CLIENT   "HTTP/1.1 200 OK\r\n" .
+                                    "Content-Type: text/html\r\n" .
+                                    "Content-Length: " . length($reponse) . "\r\n\r\n" .
+                                    $reponse;
+                } 
 
-                # Par défaut, la réponse sera la page définie dans la configuration
-                $reponse = readfile($config{"global"}{"default"});
+                # Si aucune réponse n'a été construite
+                unless (length($reponse)) {
+                    # Par défaut, la réponse sera la page définie dans la configuration
+                    $reponse = readfile($config{"global"}{"default"});
 
-                # On envoie la réponse
-                printf CLIENT   "HTTP/1.1 200 OK\r\n" .
-                                "Content-Type: text/html\r\n" .
-                                "Content-Length: " . length($reponse) . "\r\n\r\n" .
-                                $reponse;
+                    # On envoie la réponse
+                    printf CLIENT   "HTTP/1.1 200 OK\r\n" .
+                                    "Content-Type: text/html\r\n" .
+                                    "Content-Length: " . length($reponse) . "\r\n\r\n" .
+                                    $reponse;
+                }
 
                 close CLIENT;
 
@@ -130,7 +141,7 @@ if ($commande eq "start") {
     kill USR1, pidserv() || die("Le serveur n'est pas lancé\n");
 } elsif ($commande eq "stop") {
     # stop
-    kill KILL, pidserv() || die("Le serveur n'est pas lancé\n");
+    kill QUIT, pidserv() || die("Le serveur n'est pas lancé\n");
 
     addlog("stop");
 
@@ -210,13 +221,9 @@ sub pidserv {
 sub stop {
     $started = 0;
 
-    printf "Serveur en cours d'arrêt\n";
-
     close SERVEUR;
 
     while(wait != -1){}
-
-    printf "Serveur arrêté\n";
 }
 
 
