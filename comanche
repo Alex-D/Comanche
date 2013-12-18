@@ -56,13 +56,17 @@ if ($commande eq "start") {
     setsockopt(SERVEUR, SOL_SOCKET, SO_RUSEADDR, 1);
 
     $port = $config{"global"}{"port"};
-    $addr = sockaddr_in($port, INADDR_ANY) || die("sockaddr_in");
-    bind(SERVEUR, $addr) || die("Le port $port est déjà utilisé\n");
-    listen(SERVEUR, SOMAXCONN) || die("listen error");
+    $addr = sockaddr_in($port, INADDR_ANY) || do { die("sockaddr_in"); unlink($pidfile); };
+    bind(SERVEUR, $addr) || do { die("Le port $port est déjà utilisé\n"); unlink($pidfile); };
+    listen(SERVEUR, SOMAXCONN) || do { die("listen error"); unlink($pidfile); };
 
     printf "Serveur lancé sur le port $port\n";
 
-    while (accept(CLIENT, SERVEUR) or do { next if $!{EINTR}; die("Accept impossible : $!\n") }) {
+    $started = 1;
+
+    while ($started) {
+        $client = accept(CLIENT, SERVEUR) or do { last if $started eq 0; next if $!{EINTR}; die("Accept impossible : $!\n"); };
+
         $reqrecues += 1;
 
         autoflush CLIENT 1;
@@ -113,8 +117,6 @@ if ($commande eq "start") {
             $reqtraitees += 1;
         }
     }
-
-    close SERVEUR;
     
 } elsif ($commande eq "status") {
     # status
@@ -123,9 +125,9 @@ if ($commande eq "start") {
     # stop
     kill KILL, pidserv() || die("Le serveur n'est pas lancé\n");
 
-    unlink($pidfile);
-
     addlog("stop");
+
+    unlink($pidfile);
 } elsif ($commande eq "reload") {
     # reload
     pidserv() || die("Le serveur n'est pas lancé\n");
@@ -199,9 +201,15 @@ sub pidserv {
 
 # Arrête le serveur
 sub stop {
-    while(wait != -1){}
+    $started = 0;
+
+    printf "Serveur en cours d'arrêt\n";
+
     close SERVEUR;
-    exit 0;
+
+    while(wait != -1){}
+
+    printf "Serveur arrêté\n";
 }
 
 
@@ -239,9 +247,9 @@ sub addlog {
 sub date {
     ($s, $min, $h, $j, $m, $a) = localtime(time);
 
-    $s = ($s > 10) ? $s : "0$s";
-    $min = ($min > 10) ? $min : "0$min";
-    $h = ($h > 10) ? $h : "0$h";
+    $s      = ($s > 10)     ? $s    : "0$s";
+    $min    = ($min > 10)   ? $min  : "0$min";
+    $h      = ($h > 10)     ? $h    : "0$h";
 
     return "$h:$min:$s $j/$m/" . ($a+1900);
 }
