@@ -62,7 +62,7 @@ if ($commande eq "start") {
 
 	printf "Serveur lancé sur le port $port\n";
 
-	while (accept(CLIENT, SERVEUR)) {
+	while (accept(CLIENT, SERVEUR) || next) {
 		$reqrecues += 1;
 
 		autoflush CLIENT 1;
