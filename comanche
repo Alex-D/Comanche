@@ -75,7 +75,7 @@ if ($commande eq "start") {
         if ($#fils >= $config{"global"}{"clients"}) {
             $reponse  = "<html><body>" .
                         "<h1>503 Service Unavailable</h1>" .
-                        "<h2>Trop de connexions simultannées, réessayez plus tard</h2>" .
+                        "<h2>Trop de connexions simultanées, réessayez plus tard</h2>" .
                         "</body></html>";
 
             printf CLIENT   "HTTP/1.1 503 Service Unavailable\r\n" .
