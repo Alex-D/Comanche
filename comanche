@@ -71,6 +71,7 @@ if ($commande eq "start") {
 
         autoflush CLIENT 1;
 
+
         if ($#fils >= $config{"global"}{"clients"}) {
             $reponse  = "<html><body>" .
                         "<h1>503 Service Unavailable</h1>" .
@@ -78,11 +79,9 @@ if ($commande eq "start") {
                         "</body></html>";
 
             printf CLIENT   "HTTP/1.1 503 Service Unavailable\r\n" .
-                            "Content-Type: text/html\r\n" .
-                            "Content-Length: " . length($reponse) . "\r\n\r\n".
-                            $response;
-
-            close CLIENT;
+                            "Content-Type: text/html; charset=utf-8\r\n" .
+                            "Content-Length: " . length($reponse) . "\r\n\r\n" .
+                            $reponse;
         } else {
             $pid = fork;
             
@@ -118,7 +117,7 @@ if ($commande eq "start") {
                                     $reponse;
                 }
 
-                close CLIENT;
+                close CLIENT or die("$!");;
 
 
                 # Ajout au log de la requête effectuée
@@ -134,7 +133,12 @@ if ($commande eq "start") {
 
             $reqtraitees += 1;
         }
+
+        close CLIENT or die("$!");;
     }
+
+    close CLIENT or die("$!");;
+    close SERVEUR or die("$!");;
     
 } elsif ($commande eq "status") {
     # status
@@ -220,8 +224,6 @@ sub pidserv {
 # Arrête le serveur
 sub stop {
     $started = 0;
-
-    close SERVEUR;
 
     while(wait != -1){}
 }
