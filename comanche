@@ -17,8 +17,8 @@ chargerconfig();
 
 
 # Compteurs
-$reqrecues 		= 0;
-$reqtraitees 	= 0;
+$reqrecues      = 0;
+$reqtraitees    = 0;
 
 
 # Liste des pid des fils
@@ -27,113 +27,112 @@ $reqtraitees 	= 0;
 
 
 if ($commande eq "start") {
-	die("Une autre instance de Commanche est déjà en cours...\n") if(-f $pidfile);
+    die("Une autre instance de Commanche est déjà en cours...\n") if(-f $pidfile);
 
-	# Crée un fork et tue le père pour rendre la main
-	$pid = fork;
-	if ($pid != 0) {
-		# Stock le pid du fils
-		open(PID, ">$pidfile");
-		print PID $pid;
-		close(PID);
+    # Crée un fork et tue le père pour rendre la main
+    $pid = fork;
+    if ($pid != 0) {
+        # Stock le pid du fils
+        open(PID, ">$pidfile");
+        print PID $pid;
+        close(PID);
 
-		# Tue le père
-		exit 0;
-	}
+        # Tue le père
+        exit 0;
+    }
 
-	addlog("start");
+    addlog("start");
 
 
-	# Traitement des signaux
-	#   USR1 => status
-	$SIG{USR1} = \&status;
-	#   KILL => stop
-	$SIG{KILL} = \&stop;
+    # Traitement des signaux
+    #   USR1 => status
+    $SIG{USR1} = \&status;
+    #   KILL => stop
+    $SIG{KILL} = \&stop;
 
-	
-	# Lancement de la socket
-	socket(SERVEUR, PF_INET, SOCK_STREAM, getprotobyname('tcp'));
-	setsockopt(SERVEUR, SOL_SOCKET, SO_RUSEADDR, 1);
+    
+    # Lancement de la socket
+    socket(SERVEUR, PF_INET, SOCK_STREAM, getprotobyname('tcp'));
+    setsockopt(SERVEUR, SOL_SOCKET, SO_RUSEADDR, 1);
 
-	$port = $config{"global"}{"port"};
-	$addr = sockaddr_in($port, INADDR_ANY) || die("sockaddr_in");
-	bind(SERVEUR, $addr) || die("Le port $port est déjà utilisé\n");
-	listen(SERVEUR, SOMAXCONN) || die("listen error");
+    $port = $config{"global"}{"port"};
+    $addr = sockaddr_in($port, INADDR_ANY) || die("sockaddr_in");
+    bind(SERVEUR, $addr) || die("Le port $port est déjà utilisé\n");
+    listen(SERVEUR, SOMAXCONN) || die("listen error");
 
-	printf "Serveur lancé sur le port $port\n";
+    printf "Serveur lancé sur le port $port\n";
 
-	while (accept(CLIENT, SERVEUR) || next) {
-		$reqrecues += 1;
+    while (accept(CLIENT, SERVEUR) or do { next if $!{EINTR}; die("Accept impossible : $!\n") }) {
+        $reqrecues += 1;
 
-		autoflush CLIENT 1;
+        autoflush CLIENT 1;
 
-		if ($#fils >= $config{"global"}{"clients"}) {
-			$reponse  = "<html><body>" .
-						"<h1>503 Service Unavailable</h1>" .
-						"<h2>Trop de connexions simultannées, réessayez plus tard</h2>" .
-						"</body></html>";
+        if ($#fils >= $config{"global"}{"clients"}) {
+            $reponse  = "<html><body>" .
+                        "<h1>503 Service Unavailable</h1>" .
+                        "<h2>Trop de connexions simultannées, réessayez plus tard</h2>" .
+                        "</body></html>";
 
-			printf CLIENT 	"HTTP/1.1 503 Service Unavailable\r\n" .
-				  			"Content-Type: text/html\r\n" .
-			 				"Content-Length: " . length($reponse) . "\r\n\r\n";
+            printf CLIENT   "HTTP/1.1 503 Service Unavailable\r\n" .
+                            "Content-Type: text/html\r\n" .
+                            "Content-Length: " . length($reponse) . "\r\n\r\n".
+                            $response;
 
-			printf $response;
+            close CLIENT;
+        } else {
+            $pid = fork;
+            
+            if ($pid == 0){
+                # TODO: traiter la requête
+                $req = <CLIENT>;
+                while(<CLIENT> =~ /^\r?\n/){}
 
-			close CLIENT;
-		} else {
-			$pid = fork;
-			
-			if ($pid == 0){
-				# TODO: traiter la requête
-				$req = <CLIENT>;
-				while(<CLIENT> =~ /^\r?\n/){}
+                $req =~ /(?-i)GET(?i)\s(\/(?:.*))\sHTTP\/1\.1/ || badrequest();
+                $req = $1;
 
-				$req =~ /(?-i)GET(?i)\s(\/(?:.*))\sHTTP\/1\.1/ || badrequest();
-				$req = $1;
+                addlog("GET", "IP", $req, "", "");
 
-				addlog("GET", "IP", $req, "", "");
+                # addlog("get-X", IP, <requête>, <projection = chemin>, <code HTTP>);
 
-				# addlog("get-X", IP, <requête>, <projection = chemin>, <code HTTP>);
+                $reponse  = "<html><body>" .
+                            "<h1>404 Not Found</h1>" .
+                            "</body></html>";
 
-				$reponse  = "<html><body>" .
-							"<h1>404 Not Found</h1>" .
-							"</body></html>";
+                printf CLIENT   "HTTP/1.1 404 Not Found\r\n" .
+                                "Content-Type: text/html; charset=utf-8\r\n" .
+                                "Content-Length: " . length($reponse) . "\r\n\r\n" .
+                                $reponse;
 
-				printf CLIENT   "HTTP/1.1 404 Not Found\r\n" .
-								"Content-Type: text/html; charset=utf-8\r\n" .
-								"Content-Length: " . length($reponse) . "\r\n\r\n" .
-								$reponse;
+                close CLIENT;
 
-				close CLIENT;
+                exit 0;
+            }
 
-				exit 0;
-			}
+            push(@fils, $pid);
 
-			push(@fils, $pid);
+            $reqtraitees += 1;
+        }
+    }
 
-			$reqtraitees += 1;
-		}
-	}
-
-	close SERVEUR;
-	
+    close SERVEUR;
+    
 } elsif ($commande eq "status") {
-	# status
-	kill USR1, pidserv() || die("Le serveur n'est pas lancé\n");
+    # status
+    kill USR1, pidserv() || die("Le serveur n'est pas lancé\n");
 } elsif ($commande eq "stop") {
-	# stop
-	kill KILL, pidserv() || die("Le serveur n'est pas lancé\n");
+    # stop
+    kill KILL, pidserv() || die("Le serveur n'est pas lancé\n");
 
-	unlink($pidfile);
+    unlink($pidfile);
 
-	addlog("stop");
+    addlog("stop");
 } elsif ($commande eq "reload") {
-	# reload
-	pidserv() || die("Le serveur n'est pas lancé\n");
+    # reload
+    pidserv() || die("Le serveur n'est pas lancé\n");
 
-	chargerconfig();
+    chargerconfig();
 } else {
-	die("Paramètre non pris en charge. Paramètres autorisés : start, stop, status, reload\n");
+    die("Paramètre non pris en charge. Paramètres autorisés : start, stop, status, reload\n");
 }
 
 
@@ -141,103 +140,103 @@ if ($commande eq "start") {
 
 # Réponse en cas de requête invalide
 sub badrequest {
-	$reponse  = "<html><body>" .
-				"<h1>400 Bad Request</h1>" .
-				"<h2>Requête invalide</h2>" .
-				"</body></html>";
+    $reponse  = "<html><body>" .
+                "<h1>400 Bad Request</h1>" .
+                "<h2>Requête invalide</h2>" .
+                "</body></html>";
 
-	printf CLIENT   "HTTP/1.1 400 Bad Request\r\n" .
-					"Content-Type: text/html; charset=utf-8\r\n" .
-					"Content-Length: " . length($reponse) . "\r\n\r\n" .
-					$reponse;
+    printf CLIENT   "HTTP/1.1 400 Bad Request\r\n" .
+                    "Content-Type: text/html; charset=utf-8\r\n" .
+                    "Content-Length: " . length($reponse) . "\r\n\r\n" .
+                    $reponse;
 
-	close CLIENT;
+    close CLIENT;
 
-	exit 0;
+    exit 0;
 }
 
 
 # Charge la configuration
 sub chargerconfig {
-	# Vide la configuration
-	undef %config;
+    # Vide la configuration
+    undef %config;
 
-	# Charge la configuration depuis le fichier comanche.conf
-	open(CONFIG, "comanche.conf") || die("Impossible de charger le fichier de configuration\n");
-	while(<CONFIG>) {
-		if(/^set\s+(.+)\s+(.+)/){
-			$cle 	= $1;
-			$valeur = $2;
+    # Charge la configuration depuis le fichier comanche.conf
+    open(CONFIG, "comanche.conf") || die("Impossible de charger le fichier de configuration\n");
+    while(<CONFIG>) {
+        if(/^set\s+(.+)\s+(.+)/){
+            $cle    = $1;
+            $valeur = $2;
 
-			if($cle =~ /port/){			# Validation du port TCP
-				die("[Erreur configuration] Port invalide\n") unless($valeur =~ /[\d+]/ && $valeur >= 1 && $valeur <= 65535);
-			} elsif($cle =~ /clients/){	# Validation du nombre de clients
-				die("[Erreur configuration] Nombre de clients invalide\n") unless($valeur =~ /\d+/);
-			} elsif($cle =~ /default/){ # Validation du fichier par défaut
-				die("[Erreur configuration] Fichier default inaccessible\n") unless(-f $valeur);
-			}
+            if($cle =~ /port/){         # Validation du port TCP
+                die("[Erreur configuration] Port invalide\n") unless($valeur =~ /[\d+]/ && $valeur >= 1 && $valeur <= 65535);
+            } elsif($cle =~ /clients/){ # Validation du nombre de clients
+                die("[Erreur configuration] Nombre de clients invalide\n") unless($valeur =~ /\d+/);
+            } elsif($cle =~ /default/){ # Validation du fichier par défaut
+                die("[Erreur configuration] Fichier default inaccessible\n") unless(-f $valeur);
+            }
 
-			$config{"global"}{$cle} = $valeur;
-		} elsif (/^route\s+(.+?)\s+to\s+(.+)/) {
-			$config{"routes"}{$1} = $2;
-		} elsif (/^exec\s+(.+?)\s+from\s+(.+)/) {
-			$config{"exec"}{$1} = $2;
-		} 
-	}
-	close(CONFIG);
+            $config{"global"}{$cle} = $valeur;
+        } elsif (/^route\s+(.+?)\s+to\s+(.+)/) {
+            $config{"routes"}{$1} = $2;
+        } elsif (/^exec\s+(.+?)\s+from\s+(.+)/) {
+            $config{"exec"}{$1} = $2;
+        } 
+    }
+    close(CONFIG);
 }
 
 
 # Récupère le pid du fils
 sub pidserv {
-	open(FILS, ".pid");
-	$pid = <FILS>;
-	close(FILS);
+    open(FILS, "$pidfile");
+    $pid = <FILS>;
+    close(FILS);
 
-	return $pid;
+    return $pid;
 }
 
 
 # Arrête le serveur
 sub stop {
-	while(wait != -1){}
-	close SERVEUR;
-	exit 0;
+    while(wait != -1){}
+    close SERVEUR;
+    exit 0;
 }
 
 
 # Affiche le status du serveur
 sub status {
-	local $, = ", ";
-	print "PID du processus principal : $$\n";
-	print "Nombre de requêtes :\n";
-	print "\treçues : $reqrecues\n";
-	print "\ttraitées : $reqtraitees\n";
-	print "Nombre d'ouvriers actifs : $#fils\n";
-	print @fils;
+    local $, = ", ";
+    print "PID du processus principal : $$\n";
+    print "Nombre de requêtes :\n";
+    print "\treçues : $reqrecues\n";
+    print "\ttraitées : $reqtraitees\n";
+    print "Nombre d'ouvriers actifs : $#fils\n";
+    print @fils;
 }
 
 
 # Ajoute une ligne au log de la forme
 # <date>;<type>;<machine>;<requête>;<projection>;<réponse>;
 sub addlog {
-	open(LOG, ">>".$config{"global"}{"logfile"});
+    open(LOG, ">>".$config{"global"}{"logfile"});
 
-	if($_[0] eq "start" || $_[0] eq "stop"){
-		@line = (date(), $_[0], "local", $conf{"port"}, "", "", "");
-	} else {
-		@line = (date(), @_);
-	}
+    if($_[0] eq "start" || $_[0] eq "stop"){
+        @line = (date(), $_[0], "local", $conf{"port"}, "", "", "");
+    } else {
+        @line = (date(), @_);
+    }
 
-	local $, = ";";
-	print LOG @line,"\n";
-	
-	close(LOG);
+    local $, = ";";
+    print LOG @line,"\n";
+    
+    close(LOG);
 }
 
 
 # Formate la date de façon lisible
 sub date {
-	($s, $min, $h, $j, $m, $a) = localtime(time);
-	return "$h:$min:$s $j/$m/" . ($a+1900);
+    ($s, $min, $h, $j, $m, $a) = localtime(time);
+    return "$h:$min:$s $j/$m/" . ($a+1900);
 }
