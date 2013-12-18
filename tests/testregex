@@ -1,0 +1,74 @@
+#!/usr/bin/perl
+
+
+$file = $ARGV[0];
+
+open(CONFIG, "$file") || die("Impossible de charger le fichier");
+
+while(<CONFIG>) {
+    if(/^set\s+(.+)\s+(.+)/){
+	${$1} = $2;
+    } elsif (/^route\s+(.+?)\s+to\s+(.+)/) {
+	$route{$1} = $2;
+    } elsif (/^exec\s+(.+?)\s+from\s+(.+)/) {
+	$exe{$1} = $2;
+    } 
+}
+
+close(CONFIG);
+
+print $port."\n";
+print $default."\n";
+print $index."\n";
+print $clients."\n";
+print $logfile."\n";
+print $basedir."\n";
+#print Dumper(\%route)."\n";
+@tabRoute = %route;
+@tabExec = %exe;
+
+$" = " => ";
+
+#for (@tabRoute) {
+#    print $_."\n";
+#}
+#print "@tabRoute\n";
+#print "@tabExec\n";
+
+foreach (keys(%route)) {
+   print "$_ $route{$_}\n";
+}
+
+foreach (keys(%exe)) {
+   print "$_ $exe{$_}\n";
+}
+
+print "/------------------------------------------------------------\n";
+
+$chaine = "/index.html";
+#print $chaine."\n";
+foreach (keys(%route)) {
+
+    if ($chaine =~ /$_/) {
+
+#       print "start : $_\n";
+#       print "end : $route{$_}\n";
+#       $chaine =~ s/qr~$_~/qr~$route{$_}~/;
+	print replace($chaine, $_, $route{$_})."\n";
+
+    }
+}
+
+#print "ca donne : ".$chaine."\n";
+
+sub replace {
+
+    print "param1 : ".$_[0]."\n";
+    print "param2 : ".$_[1]."\n";
+    print "param3 : ".$_[2]."\n";
+
+    $_[0] =~ s/$_[1]/toto/;
+#    print "resultat : ".$_[0]."\n";
+
+    return $_[0];
+}
