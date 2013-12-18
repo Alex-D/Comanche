@@ -4,7 +4,7 @@ use Socket;
 
 
 # Quitte s'il manque le paramètre
-die("Option nécessaire parmis : start, stop, status, reload\n") if($#ARGV < 0);
+die("Option nécessaire parmis : start, stop, status, reload\n") if ($#ARGV < 0);
 
 
 # Récupère la commande
@@ -85,7 +85,7 @@ if ($commande eq "start") {
         } else {
             $pid = fork;
             
-            if ($pid == 0){
+            if ($pid == 0) {
                 # Traitement de la requête
                 $req = <CLIENT>;
                 while (<CLIENT> =~ /^\r?\n/) {}
@@ -117,7 +117,7 @@ if ($commande eq "start") {
                                     $reponse;
                 }
 
-                close CLIENT or die("$!");;
+                close CLIENT;
 
 
                 # Ajout au log de la requête effectuée
@@ -134,11 +134,11 @@ if ($commande eq "start") {
             $reqtraitees += 1;
         }
 
-        close CLIENT or die("$!");;
+        close CLIENT;
     }
 
-    close CLIENT or die("$!");;
-    close SERVEUR or die("$!");;
+    close CLIENT;
+    close SERVEUR;
     
 } elsif ($commande eq "status") {
     # status
@@ -163,7 +163,8 @@ if ($commande eq "start") {
 
 
 # Réponse en cas de requête invalide
-sub badrequest {
+sub badrequest
+{
     $reponse  = "<html><body>" .
                 "<h1>400 Bad Request</h1>" .
                 "<h2>Requête invalide</h2>" .
@@ -181,7 +182,8 @@ sub badrequest {
 
 
 # Charge la configuration
-sub chargerconfig {
+sub chargerconfig
+{
     # Vide la configuration
     undef %config;
 
@@ -212,7 +214,8 @@ sub chargerconfig {
 
 
 # Récupère le pid du fils
-sub pidserv {
+sub pidserv
+{
     open(FILS, "$pidfile");
     $pid = <FILS>;
     close(FILS);
@@ -222,15 +225,17 @@ sub pidserv {
 
 
 # Arrête le serveur
-sub stop {
+sub stop
+{
     $started = 0;
 
-    while(wait != -1){}
+    while (wait != -1) {}
 }
 
 
 # Affiche le status du serveur
-sub status {
+sub status
+{
     local $, = ", ";
     print "PID du processus principal : $$\n";
     print "Nombre de requêtes :\n";
@@ -242,11 +247,12 @@ sub status {
 
 
 # Retourne le contenu d'un fichier
-sub readfile {
+sub readfile
+{
     my $contenu;
 
     open(DEFAULT, $_[0]);
-    while(<DEFAULT>){
+    while (<DEFAULT>) {
         $contenu .= $_;
     }
     close(DEFAULT);
@@ -257,7 +263,8 @@ sub readfile {
 
 # Ajoute une ligne au log de la forme
 # <date>;<type>;<machine>;<requête>;<projection>;<réponse>;
-sub addlog {
+sub addlog
+{
     open(LOG, ">>".$config{"global"}{"logfile"});
 
     if($_[0] eq "start" || $_[0] eq "stop"){
@@ -274,7 +281,8 @@ sub addlog {
 
 
 # Formate la date de façon lisible
-sub date {
+sub date
+{
     ($s, $min, $h, $j, $m, $a) = localtime(time);
 
     $s      = ($s > 10)     ? $s    : "0$s";
