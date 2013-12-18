@@ -238,5 +238,10 @@ sub addlog {
 # Formate la date de façon lisible
 sub date {
     ($s, $min, $h, $j, $m, $a) = localtime(time);
+
+    $s = ($s > 10) ? $s : "0$s";
+    $min = ($min > 10) ? $min : "0$min";
+    $h = ($h > 10) ? $h : "0$h";
+
     return "$h:$min:$s $j/$m/" . ($a+1900);
 }
