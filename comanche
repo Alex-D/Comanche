@@ -41,7 +41,7 @@ if ($commande eq "start") {
         exit 0;
     }
 
-    addlog("start");
+    ajouterlog("start");
 
 
     # Traitement des signaux
@@ -90,41 +90,30 @@ if ($commande eq "start") {
                 $req = <CLIENT>;
                 while (<CLIENT> =~ /^\r?\n/) {}
 
-                $req =~ /(?-i)GET(?i)\s(\/(?:.*))\sHTTP\/1\.1/ || badrequest;
+                $req =~ /(?-i)GET(?i)\s(\/(?:.*))\sHTTP\/1\.1/ || repondre400;
                 $req = $1;
+
+                # TODO: Récupérer l'IP
+                $ip = "123.123.123.123";
 
                 # Si le chemin existe
                 if ($req =~ /nematchpas/) {
                     # TODO: Recherche de la page correspondant à la requête
-                    # $reponse = readfile(LE_FICHIER);
+                    $reponse = lirefichier("LE_FICHIER");
 
                     # On envoie la réponse
                     printf CLIENT   "HTTP/1.1 200 OK\r\n" .
                                     "Content-Type: text/html\r\n" .
                                     "Content-Length: " . length($reponse) . "\r\n\r\n" .
                                     $reponse;
+
+                	ajouterlog("get-X", $ip, $req, "chemin", 200);
                 } 
 
                 # Si aucune réponse n'a été construite
-                unless (length($reponse)) {
-                    # Par défaut, la réponse sera la page définie dans la configuration
-                    $reponse = readfile($config{"global"}{"default"});
-
-                    # On envoie la réponse
-                    printf CLIENT   "HTTP/1.1 200 OK\r\n" .
-                                    "Content-Type: text/html\r\n" .
-                                    "Content-Length: " . length($reponse) . "\r\n\r\n" .
-                                    $reponse;
-                }
+                repondre404 unless (length($reponse));
 
                 close CLIENT;
-
-
-                # Ajout au log de la requête effectuée
-                addlog("GET", "IP", $req, "", "");
-
-                # addlog("get-X", IP, <requête>, <projection = chemin>, <code HTTP>);
-
 
                 exit 0;
             }
@@ -147,7 +136,7 @@ if ($commande eq "start") {
     # stop
     kill QUIT, pidserv() || die("Le serveur n'est pas lancé\n");
 
-    addlog("stop");
+    ajouterlog("stop");
 
     unlink($pidfile);
 } elsif ($commande eq "reload") {
@@ -163,7 +152,7 @@ if ($commande eq "start") {
 
 
 # Réponse en cas de requête invalide
-sub badrequest
+sub repondre400
 {
     my $reponse =   "<html><body>" .
                     "<h1>400 Bad Request</h1>" .
@@ -174,6 +163,27 @@ sub badrequest
                     "Content-Type: text/html; charset=utf-8\r\n" .
                     "Content-Length: " . length($reponse) . "\r\n\r\n" .
                     $reponse;
+
+    close CLIENT;
+
+    exit 0;
+}
+
+
+# Renvoie une erreur 404
+sub repondre404
+{
+	# Par défaut, la réponse sera la page définie dans la configuration
+    $reponse = lirefichier($config{"global"}{"default"});
+
+    # On envoie la réponse
+    printf CLIENT   "HTTP/1.1 404 Not Found\r\n" .
+                    "Content-Type: text/html\r\n" .
+                    "Content-Length: " . length($reponse) . "\r\n\r\n" .
+                    $reponse;
+
+    # Ajout au log de la requête effectuée
+    ajouterlog("GET", $ip, $req, $config{"global"}{"default"}, 404);
 
     close CLIENT;
 
@@ -247,15 +257,15 @@ sub status
 
 
 # Retourne le contenu d'un fichier
-sub readfile
+sub lirefichier
 {
     my $contenu;
 
-    open(DEFAULT, $_[0]);
-    while (<DEFAULT>) {
+    open(FICHIER, $_[0]) || repondre404;
+    while (<FICHIER>) {
         $contenu .= $_;
     }
-    close(DEFAULT);
+    close(FICHIER);
 
     return $contenu;
 }
@@ -263,7 +273,7 @@ sub readfile
 
 # Ajoute une ligne au log de la forme
 # <date>;<type>;<machine>;<requête>;<projection>;<réponse>;
-sub addlog
+sub ajouterlog
 {
     open(LOG, ">>".$config{"global"}{"logfile"});
 
