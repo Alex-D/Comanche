@@ -87,27 +87,34 @@ if ($commande eq "start") {
             $pid = fork;
             
             if ($pid == 0){
-                # TODO: traiter la requête
+                # Traitement de la requête
                 $req = <CLIENT>;
                 while(<CLIENT> =~ /^\r?\n/){}
 
                 $req =~ /(?-i)GET(?i)\s(\/(?:.*))\sHTTP\/1\.1/ || badrequest();
                 $req = $1;
 
-                addlog("GET", "IP", $req, "", "");
 
-                # addlog("get-X", IP, <requête>, <projection = chemin>, <code HTTP>);
+                # TODO: Recherche de la page correspondant à la requête
+                # $reponse = readfile(LE_FICHIER);
 
-                $reponse  = "<html><body>" .
-                            "<h1>404 Not Found</h1>" .
-                            "</body></html>";
+                # Par défaut, la réponse sera la page définie dans la configuration
+                $reponse = readfile($config{"global"}{"default"});
 
-                printf CLIENT   "HTTP/1.1 404 Not Found\r\n" .
-                                "Content-Type: text/html; charset=utf-8\r\n" .
+                # On envoie la réponse
+                printf CLIENT   "HTTP/1.1 200 OK\r\n" .
+                                "Content-Type: text/html\r\n" .
                                 "Content-Length: " . length($reponse) . "\r\n\r\n" .
                                 $reponse;
 
                 close CLIENT;
+
+
+                # Ajout au log de la requête effectuée
+                addlog("GET", "IP", $req, "", "");
+
+                # addlog("get-X", IP, <requête>, <projection = chemin>, <code HTTP>);
+
 
                 exit 0;
             }
@@ -222,6 +229,20 @@ sub status {
     print "\ttraitées : $reqtraitees\n";
     print "Nombre d'ouvriers actifs : $#fils\n";
     print @fils;
+}
+
+
+# Retourne le contenu d'un fichier
+sub readfile {
+    my $contenu;
+
+    open(DEFAULT, $_[0]);
+    while(<DEFAULT>){
+        $contenu .= $_;
+    }
+    close(DEFAULT);
+
+    return $contenu;
 }
 
 
