@@ -49,6 +49,8 @@ if ($commande eq "start") {
     $SIG{USR1} = \&status;
     #   QUIT => stop
     $SIG{QUIT} = \&stop;
+    #   CHLD => retirerfils
+    $SIG{CHLD} = \&retirerfils;
 
     
     # Lancement de la socket
@@ -93,33 +95,28 @@ if ($commande eq "start") {
                 $req =~ /(?-i)GET(?i)\s(\/(?:.*))\sHTTP\/1\.1/ || repondre400();
                 $req = $1;
 
+
                 # TODO: Récupérer l'IP
                 $ip = "123.123.123.123";
 
-                # Si le chemin existe
-                # TODO: Recherche de la page correspondant à la requête
-                if ($req =~ /nematchpas/) {
-                    $fichier = "UN_FICHIER";
 
-                    repondre404() unless(-f $fichier);
+                $fichier = recupererchemin($req);
 
-                    $reponse = lirefichier($fichier);
+                repondre404() unless(-f $fichier);
 
-                    # On envoie la réponse
-                    printf CLIENT   "HTTP/1.1 200 OK\r\n" .
-                                    "Content-Type: text/html\r\n" .
-                                    "Content-Length: " . length($reponse) . "\r\n\r\n" .
-                                    $reponse;
+                $reponse = lirefichier($fichier);
 
-                	ajouterlog("get-X", $ip, $req, "chemin", 200);
+                # On envoie la réponse
+                printf CLIENT   "HTTP/1.1 200 OK\r\n" .
+                                "Content-Type: text/html\r\n" .
+                                "Content-Length: " . length($reponse) . "\r\n\r\n" .
+                                $reponse;
 
-                    close CLIENT;
+            	ajouterlog("get-X", $ip, $req, "chemin", 200);
 
-                    exit 0;
-                }
+                close CLIENT;
 
-                # Si aucune réponse n'a été construite
-                repondre404();
+                exit 0;
             }
 
             push(@fils, $pid);
@@ -154,27 +151,48 @@ if ($commande eq "start") {
 
 
 
-# TODO: Retourne la route associée à la requête
+# Retourne la route associée à la requête
 sub recupererroute
 {
+    $req = $_[0];
 
+    for $route (@{$config{"rewriterules"}}) {
+        if ($req =~ /$route/) {
+            print $route;
+            print "\n";
+            print $config{"routes"}{$route};
+            print "\n";
+            print $config{"exec"}{$route};
+            print "\n";
+
+            if (exists $config{"routes"}{$route}) {
+                return ($route, $config{"routes"}{$route});
+            } elsif (exists $config{"exec"}{$route}) {
+                return ($route, $config{"exec"}{$route});
+            }
+        }
+    }
+
+    # Si la route ne correspond à rien, on retourne une 404
+    repondre404();
 }
 
 
 # Donne le chemin réel du fichier demandé par la requête
 sub recupererchemin
 {
-    my $p1 = qr/$_[1]/;
+    my @route = recupererroute($_[0]);
+    my $p1 = qr/$route[1]/;
 
     $_ = $_[0];
 
     # TODO : faire proprement la transformation avec s/// et l'interprétation du \1
     my @matches = m/$p1/;
-    my $p2 = $_[2];
+    my $p2 = $route[1];
 
-    for (@matches){
-	$m = $matches[$i++];
-	$p2 =~ s{\\$i}{$m};
+    for (@matches) {
+	   $m = $matches[$i++];
+	   $p2 =~ s{\\$i}{$m};
     }
 
     m/$p2/;
@@ -247,8 +265,10 @@ sub chargerconfig
             $config{"global"}{$cle} = $valeur;
         } elsif (/^route\s+(.+?)\s+to\s+(.+)/) {
             $config{"routes"}{$1} = $2;
+            push(@{$config{"rewriterules"}}, $1);
         } elsif (/^exec\s+(.+?)\s+from\s+(.+)/) {
             $config{"exec"}{$1} = $2;
+            push(@{$config{"rewriterules"}}, $1);
         } 
     }
     close(CONFIG);
@@ -283,8 +303,18 @@ sub status
           "Nombre de requêtes :\n" .
           "\treçues : $reqrecues\n" .
           "\ttraitées : $reqtraitees\n" .
-          "Nombre d'ouvriers actifs : $#fils\n";
+          "Nombre d'ouvriers actifs : ". (($#fils > 0) ? $#fils : "aucun") ."\n";
     print @fils;
+
+    close CLIENT;
+}
+
+
+# Retire le fils mort de la liste des fils
+sub retirerfils
+{
+    $pid = wait();
+    @fils = grep { $_ != $pid } @fils;
 }
 
 
