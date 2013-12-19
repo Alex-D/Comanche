@@ -1,6 +1,7 @@
 #!/usr/bin/perl
 
 use Socket;
+use File::MimeInfo;
 
 
 # Quitte s'il manque le paramètre
@@ -105,10 +106,13 @@ if ($commande eq "start") {
                 repondre404() unless(-f $fichier);
 
                 $reponse = lirefichier($fichier);
+                $mimetype = mimetype($fichier);
+
+                repondre404 unless($mimetype eq "text/html" || $mimetype eq "image/jpeg" || $mimetype eq "image/pjpeg");
 
                 # On envoie la réponse
                 printf CLIENT   "HTTP/1.1 200 OK\r\n" .
-                                "Content-Type: text/html\r\n" .
+                                "Content-Type: $mimetype\r\n" .
                                 "Content-Length: " . length($reponse) . "\r\n\r\n" .
                                 $reponse;
 
@@ -158,13 +162,6 @@ sub recupererroute
 
     for $route (@{$config{"rewriterules"}}) {
         if ($req =~ /$route/) {
-            print $route;
-            print "\n";
-            print $config{"routes"}{$route};
-            print "\n";
-            print $config{"exec"}{$route};
-            print "\n";
-
             if (exists $config{"routes"}{$route}) {
                 return ($route, $config{"routes"}{$route});
             } elsif (exists $config{"exec"}{$route}) {
@@ -182,7 +179,7 @@ sub recupererroute
 sub recupererchemin
 {
     my @route = recupererroute($_[0]);
-    my $p1 = qr/$route[1]/;
+    my $p1 = qr/$route[0]/;
 
     $_ = $_[0];
 
