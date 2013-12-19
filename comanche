@@ -56,9 +56,9 @@ if ($commande eq "start") {
     setsockopt(SERVEUR, SOL_SOCKET, SO_RUSEADDR, 1);
 
     $port = $config{"global"}{"port"};
-    $addr = sockaddr_in($port, INADDR_ANY) || do { die("sockaddr_in\n"); unlink($pidfile); };
-    bind(SERVEUR, $addr) || do { die("Le port $port est déjà utilisé\n"); unlink($pidfile); };
-    listen(SERVEUR, SOMAXCONN) || do { die("listen error\n"); unlink($pidfile); };
+    $addr = sockaddr_in($port, INADDR_ANY) || do { unlink($pidfile); die("sockaddr_in\n"); };
+    bind(SERVEUR, $addr) || do { unlink($pidfile); die("Le port $port est déjà utilisé\n"); };
+    listen(SERVEUR, SOMAXCONN) || do { unlink($pidfile); die("listen error\n"); };
 
     printf "Serveur lancé sur le port $port\n";
 
@@ -90,16 +90,20 @@ if ($commande eq "start") {
                 $req = <CLIENT>;
                 while (<CLIENT> =~ /^\r?\n/) {}
 
-                $req =~ /(?-i)GET(?i)\s(\/(?:.*))\sHTTP\/1\.1/ || repondre400;
+                $req =~ /(?-i)GET(?i)\s(\/(?:.*))\sHTTP\/1\.1/ || repondre400();
                 $req = $1;
 
                 # TODO: Récupérer l'IP
                 $ip = "123.123.123.123";
 
                 # Si le chemin existe
+                # TODO: Recherche de la page correspondant à la requête
                 if ($req =~ /nematchpas/) {
-                    # TODO: Recherche de la page correspondant à la requête
-                    $reponse = lirefichier("LE_FICHIER");
+                    $fichier = "UN_FICHIER";
+
+                    repondre404() unless(-f $fichier);
+
+                    $reponse = lirefichier($fichier);
 
                     # On envoie la réponse
                     printf CLIENT   "HTTP/1.1 200 OK\r\n" .
@@ -108,14 +112,14 @@ if ($commande eq "start") {
                                     $reponse;
 
                 	ajouterlog("get-X", $ip, $req, "chemin", 200);
-                } 
+
+                    close CLIENT;
+
+                    exit 0;
+                }
 
                 # Si aucune réponse n'a été construite
-                repondre404 unless (length($reponse));
-
-                close CLIENT;
-
-                exit 0;
+                repondre404();
             }
 
             push(@fils, $pid);
@@ -154,10 +158,10 @@ if ($commande eq "start") {
 # Réponse en cas de requête invalide
 sub repondre400
 {
-    my $reponse =   "<html><body>" .
-                    "<h1>400 Bad Request</h1>" .
-                    "<h2>Requête invalide</h2>" .
-                    "</body></html>";
+    $reponse =  "<html><body>" .
+                "<h1>400 Bad Request</h1>" .
+                "<h2>Requête invalide</h2>" .
+                "</body></html>";
 
     printf CLIENT   "HTTP/1.1 400 Bad Request\r\n" .
                     "Content-Type: text/html; charset=utf-8\r\n" .
@@ -261,7 +265,7 @@ sub lirefichier
 {
     my $contenu;
 
-    open(FICHIER, $_[0]) || repondre404;
+    open(FICHIER, $_[0]) || return "";
     while (<FICHIER>) {
         $contenu .= $_;
     }
