@@ -62,13 +62,31 @@ foreach (keys(%route)) {
 #print "ca donne : ".$chaine."\n";
 
 sub replace {
+#    print "param0 : ".$_[0]."\n";
+#    print "param1 : ".$_[1]."\n";
+#    print "param2 : ".$_[2]."\n";
 
-    print "param1 : ".$_[0]."\n";
-    print "param2 : ".$_[1]."\n";
-    print "param3 : ".$_[2]."\n";
+    my $p1 = qr/$_[1]/;
+    
 
-    $_[0] =~ s/$_[1]/toto/;
-#    print "resultat : ".$_[0]."\n";
+    $_ = $_[0];
 
-    return $_[0];
+    my @matches = m/$p1/;
+    my $p2 = $_[2];
+
+    for (@matches){
+	$m = $matches[$i++];
+	$p2 =~ s{\\$i}{$m};
+    }
+
+    #print $p2."\n\n";
+    m/$p2/;
+
+    return $p2;
+}
+
+sub rechercherroute {
+    $chemin = "default";
+
+    return $chemin;
 }
