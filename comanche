@@ -155,14 +155,31 @@ if ($commande eq "start") {
 
 
 # TODO: Retourne la route associée à la requête
-sub recupererroute {
+sub recupererroute
+{
 
 }
 
 
-# TODO: Donne le chemin réel du fichier demandé par la requête
-sub recupererchemin {
+# Donne le chemin réel du fichier demandé par la requête
+sub recupererchemin
+{
+    my $p1 = qr/$_[1]/;
 
+    $_ = $_[0];
+
+    # TODO : faire proprement la transformation avec s/// et l'interprétation du \1
+    my @matches = m/$p1/;
+    my $p2 = $_[2];
+
+    for (@matches){
+	$m = $matches[$i++];
+	$p2 =~ s{\\$i}{$m};
+    }
+
+    m/$p2/;
+
+    return $p2;
 }
 
 
