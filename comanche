@@ -353,8 +353,8 @@ sub ajouterlog
 sub date
 {
     my ($s, $min, $h, $j, $m, $a) = localtime(time);
-    my @jours = (Lun, Mar, Mer, Jeu, Ven, Sam, Dim);
-    my @mois = (Jan, Fev, Mar, Avr, Mai, Jun, Jul, Aou, Sep, Oct, Nov, Dec);
+    my @jours = ("Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim");
+    my @mois = ("Jan", "Fev", "Mar", "Avr", "Mai", "Jun", "Jul", "Aou", "Sep", "Oct", "Nov", "Dec");
 
     $s      = ($s > 10)     ? $s    : "0$s";
     $min    = ($min > 10)   ? $min  : "0$min";
