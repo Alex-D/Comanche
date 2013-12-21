@@ -98,7 +98,9 @@ if ($commande eq "start") {
 
 
                 # TODO: Récupérer l'IP
-                $ip = "123.123.123.123";
+                $peer           = getpeername($client);
+                ($port, $iaddr) = sockaddr_in($peer);
+                $ip             = inet_ntoa($iaddr);
 
 
                 $fichier = recupererchemin($req);
