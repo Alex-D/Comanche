@@ -9,7 +9,7 @@ die("Option nécessaire parmis : start, stop, status, reload\n") if ($#ARGV < 0)
 
 
 # Récupère la commande
-$commande = $ARGV[0]; # start, stop, status
+$commande = $ARGV[0]; # start, stop, status, reload
 
 
 # Configuration
@@ -106,7 +106,15 @@ if ($commande eq "start") {
                 repondre404() unless(-f $fichier);
 
                 $reponse = lirefichier($fichier);
-                $mimetype = mimetype($fichier);
+
+                # TODO : savoir si c'est un executable
+                if ($exec) {
+                    $reponse = executer($fichier);
+                    $mimetype = "text/html";
+                } else {
+                    $mimetype = mimetype($fichier);
+                }
+                
 
                 repondre404 unless($mimetype eq "text/html" || $mimetype eq "image/jpeg" || $mimetype eq "image/pjpeg");
 
@@ -195,6 +203,13 @@ sub recupererchemin
     m/$p2/;
 
     return $p2;
+}
+
+
+# TODO : Executer CGI
+sub executer
+{
+    return $_[0];
 }
 
 
