@@ -102,7 +102,7 @@ if ($commande eq "start") {
 
 
                 @fichier = recupererchemin($req);
-                $exec    = $fichier[0];
+                $exec    = $fichier[0] eq "exec";
                 $fichier = $fichier[1];
 
                 repondre404() unless(-f $fichier);
@@ -211,7 +211,7 @@ sub recupererchemin
 # TODO : Executer CGI
 sub executer
 {
-    return $_[0];
+    return "<h1>A EXECUTER : </h1><br><br>\n" . lirefichier($_[0]);
 }
 
 
