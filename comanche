@@ -48,6 +48,8 @@ if ($commande eq "start") {
     # Traitement des signaux
     #   USR1 => status
     $SIG{USR1} = \&status;
+    #   HUP => reload
+    $SIG{HUP}  = \&reload;
     #   QUIT => stop
     $SIG{QUIT} = \&stop;
     #   CHLD => retirerfils
@@ -120,7 +122,7 @@ if ($commande eq "start") {
                 }
                 
 
-                repondre404() unless($mimetype eq "text/html" || $mimetype eq "image/jpeg" || $mimetype eq "image/pjpeg");
+                repondre404() unless($mimetype eq "text/html" || $mimetype eq "text/plain" || $mimetype eq "image/jpeg" || $mimetype eq "image/pjpeg");
 
                 # On envoie la réponse
                 printf CLIENT   "HTTP/1.1 200 OK\r\n" .
@@ -149,6 +151,9 @@ if ($commande eq "start") {
 } elsif ($commande eq "status") {
     # status
     kill USR1, pidserv() || die("Le serveur n'est pas lancé\n");
+} elsif ($commande eq "reload") {
+    # reload
+    kill HUP, pidserv() || die("Le serveur n'est pas lancé\n");
 } elsif ($commande eq "stop") {
     # stop
     kill QUIT, pidserv() || die("Le serveur n'est pas lancé\n");
@@ -156,11 +161,6 @@ if ($commande eq "start") {
     ajouterlog("stop");
 
     unlink($pidfile);
-} elsif ($commande eq "reload") {
-    # reload
-    pidserv() || die("Le serveur n'est pas lancé\n");
-
-    chargerconfig();
 } else {
     die("Paramètre non pris en charge. Paramètres autorisés : start, stop, status, reload\n");
 }
@@ -172,12 +172,19 @@ sub recupererroute
 {
     $req = $_[0];
 
+    # Gestion du dossier de base
+    $basedir = "";
+    if (exists $config{"global"}{"basedir"}) {
+        $basedir = $config{"global"}{"basedir"};
+    }
+
+    # Parcours de toutes les règles de réécriture (routes & exec)
     for $route (@{$config{"rewriterules"}}) {
         if ($req =~ /$route/) {
             if (exists $config{"routes"}{$route}) {
-                return ("route", $route, $config{"routes"}{$route});
+                return ("route", $route, $basedir . $config{"routes"}{$route});
             } elsif (exists $config{"exec"}{$route}) {
-                return ("exec", $route, $config{"exec"}{$route});
+                return ("exec", $route, $basedir . $config{"exec"}{$route});
             }
         }
     }
@@ -257,6 +264,13 @@ sub repondre404
 }
 
 
+# Recharge la configuration
+sub reload
+{
+    chargerconfig();
+}
+
+
 # Charge la configuration
 sub chargerconfig
 {
@@ -276,6 +290,8 @@ sub chargerconfig
                 die("[Erreur configuration] Nombre de clients invalide\n") unless($valeur =~ /\d+/);
             } elsif($cle =~ /default/){ # Validation du fichier par défaut
                 die("[Erreur configuration] Fichier default inaccessible\n") unless(-f $valeur);
+            } elsif($cle =~ /basedir/){ # Validation du dossier de base
+                die("[Erreur configuration] Dossier de base inaccessible\n") unless(-d $valeur);
             }
 
             $config{"global"}{$cle} = $valeur;
