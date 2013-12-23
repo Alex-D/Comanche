@@ -101,7 +101,9 @@ if ($commande eq "start") {
                 $ip             = inet_ntoa($iaddr);
 
 
-                $fichier = recupererchemin($req);
+                @fichier = recupererchemin($req);
+                $exec    = $fichier[0];
+                $fichier = $fichier[1];
 
                 repondre404() unless(-f $fichier);
 
@@ -168,13 +170,9 @@ sub recupererroute
 {
     $req = $_[0];
 
-    for $route (@{$config{"rewriterules"}}) {
-        if ($req =~ /$route/) {
-            if (exists $config{"routes"}{$route}) {
-                return ($route, $config{"routes"}{$route});
-            } elsif (exists $config{"exec"}{$route}) {
-                return ($route, $config{"exec"}{$route});
-            }
+    for @route (@{$config{"rewriterules"}}) {
+        if ($req =~ /$route[1]/) {
+            return @route;
         }
     }
 
@@ -187,13 +185,13 @@ sub recupererroute
 sub recupererchemin
 {
     my @route = recupererroute($_[0]);
-    my $p1 = qr/$route[0]/;
+    my $p1 = qr/$route[1]/;
 
     $_ = $_[0];
 
     # TODO : faire proprement la transformation avec s/// et l'interprétation du \1
     my @matches = m/$p1/;
-    my $p2 = $route[1];
+    my $p2 = $route[2];
 
     for (@matches) {
 	   $m = $matches[$i++];
@@ -202,7 +200,7 @@ sub recupererchemin
 
     m/$p2/;
 
-    return $p2;
+    return ($route[0], $p2);
 }
 
 
@@ -276,11 +274,9 @@ sub chargerconfig
 
             $config{"global"}{$cle} = $valeur;
         } elsif (/^route\s+(.+?)\s+to\s+(.+)/) {
-            $config{"routes"}{$1} = $2;
-            push(@{$config{"rewriterules"}}, $1);
+            push(@{$config{"rewriterules"}}, ("route", $1, $2));
         } elsif (/^exec\s+(.+?)\s+from\s+(.+)/) {
-            $config{"exec"}{$1} = $2;
-            push(@{$config{"rewriterules"}}, $1);
+            push(@{$config{"rewriterules"}}, ("exec", $1, $2));
         } 
     }
     close(CONFIG);
