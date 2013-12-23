@@ -109,16 +109,18 @@ if ($commande eq "start") {
 
                 $reponse = lirefichier($fichier);
 
-                # TODO : savoir si c'est un executable
+                # Si c'est un executable
                 if ($exec) {
-                    $reponse = executer($fichier);
+                    $reponse  = executer($fichier);
                     $mimetype = "text/html";
+                    $type     = "get-d";
                 } else {
                     $mimetype = mimetype($fichier);
+                    $type     = "get-s";
                 }
                 
 
-                repondre404 unless($mimetype eq "text/html" || $mimetype eq "image/jpeg" || $mimetype eq "image/pjpeg");
+                repondre404() unless($mimetype eq "text/html" || $mimetype eq "image/jpeg" || $mimetype eq "image/pjpeg");
 
                 # On envoie la réponse
                 printf CLIENT   "HTTP/1.1 200 OK\r\n" .
@@ -126,7 +128,7 @@ if ($commande eq "start") {
                                 "Content-Length: " . length($reponse) . "\r\n\r\n" .
                                 $reponse;
 
-            	ajouterlog("get-X", $ip, $req, "chemin", 200);
+                ajouterlog($type, $ip, $req, "chemin", 200);
 
                 close CLIENT;
 
@@ -247,7 +249,7 @@ sub repondre404
                     $reponse;
 
     # Ajout au log de la requête effectuée
-    ajouterlog("GET", $ip, $req, $config{"global"}{"default"}, 404);
+    ajouterlog("get-s", $ip, $req, $config{"global"}{"default"}, 404);
 
     close CLIENT;
 
