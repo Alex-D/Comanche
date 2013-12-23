@@ -279,10 +279,10 @@ sub chargerconfig
             $config{"global"}{$cle} = $valeur;
         } elsif (/^route\s+(.+?)\s+to\s+(.+)/) {
             $config{"routes"}{$1} = $2;
-            push(@{$config{"rewriterules"}}, $1));
+            push(@{$config{"rewriterules"}}, $1);
         } elsif (/^exec\s+(.+?)\s+from\s+(.+)/) {
             $config{"exec"}{$1} = $2;
-            push(@{$config{"rewriterules"}}, $1));
+            push(@{$config{"rewriterules"}}, $1);
         } 
     }
     close(CONFIG);
