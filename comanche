@@ -170,9 +170,13 @@ sub recupererroute
 {
     $req = $_[0];
 
-    for @route (@{$config{"rewriterules"}}) {
-        if ($req =~ /$route[1]/) {
-            return @route;
+    for $route (@{$config{"rewriterules"}}) {
+        if ($req =~ /$route/) {
+            if (exists $config{"routes"}{$route}) {
+                return ("route", $route, $config{"routes"}{$route});
+            } elsif (exists $config{"exec"}{$route}) {
+                return ("exec", $route, $config{"exec"}{$route});
+            }
         }
     }
 
@@ -274,9 +278,11 @@ sub chargerconfig
 
             $config{"global"}{$cle} = $valeur;
         } elsif (/^route\s+(.+?)\s+to\s+(.+)/) {
-            push(@{$config{"rewriterules"}}, ("route", $1, $2));
+            $config{"routes"}{$1} = $2;
+            push(@{$config{"rewriterules"}}, $1));
         } elsif (/^exec\s+(.+?)\s+from\s+(.+)/) {
-            push(@{$config{"rewriterules"}}, ("exec", $1, $2));
+            $config{"exec"}{$1} = $2;
+            push(@{$config{"rewriterules"}}, $1));
         } 
     }
     close(CONFIG);
