@@ -221,10 +221,10 @@ sub recupererchemin
 }
 
 
-# TODO : Executer CGI
+# Executer CGI
 sub executer
 {
-    return "<h1>A EXECUTER : </h1><br><br>\n" . lirefichier($_[0]);
+    return `perl $_[0]`;
 }
 
 
