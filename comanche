@@ -398,7 +398,6 @@ sub date
     $s      = ($s > 10)     ? $s    : "0$s";
     $min    = ($min > 10)   ? $min  : "0$min";
     $h      = ($h > 10)     ? $h    : "0$h";
-    $j      = ($j > 10)     ? $j    : "0$j";
 
     return "$jours[$j] $mois[$m] $h:$min:$s " . ($a+1900);
 }
