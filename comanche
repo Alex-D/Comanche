@@ -130,7 +130,7 @@ if ($commande eq "start") {
                                 "Content-Length: " . length($reponse) . "\r\n\r\n" .
                                 $reponse;
 
-                ajouterlog($type, $ip, $req, "chemin", 200);
+                ajouterlog($type, $ip, $req, $fichier, 200);
 
                 close CLIENT;
 
