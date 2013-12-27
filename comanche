@@ -5,7 +5,7 @@ use File::MimeInfo;
 
 
 # Quitte s'il manque le paramètre
-die("Option nécessaire parmis : start, stop, status, reload\n") if ($#ARGV < 0);
+die("Option nécessaire parmi : start, stop, status, reload\n") if ($#ARGV < 0);
 
 
 # Récupère la commande
