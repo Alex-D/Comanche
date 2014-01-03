@@ -388,15 +388,21 @@ sub ajouterlog
 }
 
 
-# Formate la date de façon lisible
+# Renvoi la date pour les logs
 sub date
 {
-    my ($s, $min, $h, $j, $m, $a) = localtime(time);
-    my @mois = ("Jan", "Fev", "Mar", "Avr", "Mai", "Jun", "Jul", "Aou", "Sep", "Oct", "Nov", "Dec");
+    # Formate la date de façon lisible
 
-    $s      = ($s > 10)     ? $s    : "0$s";
-    $min    = ($min > 10)   ? $min  : "0$min";
-    $h      = ($h > 10)     ? $h    : "0$h";
+    # my ($s, $min, $h, $j, $m, $a) = localtime(time);
+    # my @mois = ("Jan", "Fev", "Mar", "Avr", "Mai", "Jun", "Jul", "Aou", "Sep", "Oct", "Nov", "Dec");
 
-    return "$j $mois[$m] $h:$min:$s " . ($a+1900);
+    # $s      = ($s > 10)     ? $s    : "0$s";
+    # $min    = ($min > 10)   ? $min  : "0$min";
+    # $h      = ($h > 10)     ? $h    : "0$h";
+
+    # return "$j $mois[$m] $h:$min:$s " . ($a+1900);
+
+
+    # Retourne l'epoch
+    return time();
 }
