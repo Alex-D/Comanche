@@ -115,15 +115,15 @@ if ($commande eq "start") {
 
                 # Si c'est un executable
                 if ($exec) {
-                    $reponse  = executer($fichier);
+                    $reponse = executer($fichier);
                 } else {
                     # Si c'est un dossier et qu'il y a un index
                     # On définit l'index comme le fichier à lire
-                    $fichier  = $fichier."/".$config{"global"}{"index"} if(-d $fichier && -f $fichier."/".$config{"global"}{"index"});
+                    $fichier = $fichier."/".$config{"global"}{"index"} if(-d $fichier && -f $fichier."/".$config{"global"}{"index"});
 
                     # Si c'est un dossier, on génère le HTML qui liste les fichiers
                     # Sinon, on lit le fichier
-                    $reponse  = (-d $fichier)
+                    ($reponse, $mimetype) = (-d $fichier)
                         ? indexdossier($fichier)
                         : lirefichier($fichier)
                     ;
@@ -182,10 +182,7 @@ sub recupererroute
     $req = $_[0];
 
     # Gestion du dossier de base
-    $basedir = "";
-    if (exists $config{"global"}{"basedir"}) {
-        $basedir = $config{"global"}{"basedir"};
-    }
+    $basedir = $config{"global"}{"basedir"} if (exists $config{"global"}{"basedir"});
 
     # Parcours de toutes les règles de réécriture (routes & exec)
     for $route (@{$config{"rewriterules"}}) {
@@ -261,11 +258,11 @@ sub repondre400
 sub repondre404
 {
 	# Par défaut, la réponse sera la page définie dans la configuration
-    my $reponse = lirefichier($config{"global"}{"default"});
+    my ($reponse, $mimetype) = lirefichier($config{"global"}{"default"});
 
     # On envoie la réponse
     printf CLIENT "HTTP/1.1 404 Not Found\r\n" .
-                  "Content-Type: text/html\r\n" .
+                  "Content-Type: $mimetype\r\n" .
                   "Content-Length: " . length($reponse) . "\r\n\r\n" .
                   $reponse;
 
@@ -292,7 +289,7 @@ sub chargerconfig
     undef %config;
 
     # Charge la configuration depuis le fichier comanche.conf
-    open(CONFIG, "comanche.conf") || die("Impossible de charger le fichier de configuration\n");
+    open CONFIG, "comanche.conf" || die("Impossible de charger le fichier de configuration\n");
     while(<CONFIG>) {
         if(/^set\s+(.+)\s+(.+)/){
             $cle    = $1;
@@ -317,7 +314,7 @@ sub chargerconfig
             push(@{$config{"rewriterules"}}, $1);
         } 
     }
-    close(CONFIG);
+    close CONFIG;
 }
 
 
@@ -368,13 +365,13 @@ sub retirerfils
 sub lirefichier
 {
     my ($fichier) = @_;
-    my $contenu;
+    my $contenu   = "";
 
-    open(FICHIER, $fichier) || return repondre404();
+    open FICHIER, $fichier || return repondre404();
     $contenu .= $_ while(<FICHIER>);
-    close(FICHIER);
+    close FICHIER;
 
-    return $contenu;
+    return ($contenu, mimetype($fichier));
 }
 
 
@@ -388,7 +385,7 @@ sub indexdossier
 
     $html .= "</body></html>";
 
-    return $html;
+    return ($html, "text/html");
 }
 
 
@@ -397,7 +394,8 @@ sub indexdossier
 sub ajouterlog
 {
     my ($type, @args) = @_;
-    open(LOG, ">>", $config{"global"}{"logfile"});
+
+    open LOG, ">>", $config{"global"}{"logfile"};
 
     my @line = ($type eq "start" || $type eq "stop")
         ? (time(), $type, "local", $conf{"port"}, "", "", "")
@@ -407,5 +405,5 @@ sub ajouterlog
     local $, = ";";
     print LOG @line, "\n";
     
-    close(LOG);
+    close LOG;
 }
