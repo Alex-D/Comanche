@@ -34,9 +34,9 @@ if ($commande eq "start") {
     $pid = fork;
     if ($pid != 0) {
         # Stock le pid du fils
-        open(PID, ">$pidfile");
+        open  PID, ">", $pidfile;
         print PID $pid;
-        close(PID);
+        close PID;
 
         # Tue le père
         exit 0;
@@ -129,7 +129,6 @@ if ($commande eq "start") {
                     ;
 
                     # Gestion du mimetype
-                    $mimetype = mimetype($fichier);
                     repondre404() unless($mimetype =~ m{^(text/.*|image/p?jpeg)$});
 
                     $type     = "get-s";
