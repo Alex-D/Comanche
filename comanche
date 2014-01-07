@@ -76,21 +76,23 @@ if ($commande eq "start") {
 
 
         if ($#fils >= $config{"global"}{"clients"}) {
-            $reponse  = "<html><body>" .
-                        "<h1>503 Service Unavailable</h1>" .
-                        "<h2>Trop de connexions simultanées, réessayez plus tard</h2>" .
-                        "</body></html>";
+            my $reponse =   "<!DOCTYPE html><html><head><meta carset='utf-8'><title>503 Service Unavailable</title></head><body>" .
+                            "<h1>503 Service Unavailable</h1>" .
+                            "<h2>Trop de connexions simultanées, réessayez plus tard</h2>" .
+                            "</body></html>";
 
             printf CLIENT   "HTTP/1.1 503 Service Unavailable\r\n" .
                             "Content-Type: text/html; charset=utf-8\r\n" .
                             "Content-Length: " . length($reponse) . "\r\n\r\n" .
                             $reponse;
         } else {
+            $reqtraitees += 1;
+
             $pid = fork;
             
             if ($pid == 0) {
                 # Traitement de la requête
-                $req = <CLIENT>;
+                my $req = <CLIENT>;
                 while (<CLIENT> =~ /^\r?\n/) {}
 
                 $req =~ /(?-i)GET(?i)\s(\/(?:.*))\sHTTP\/1\.1/ || repondre400();
@@ -98,37 +100,46 @@ if ($commande eq "start") {
 
 
                 # Récupère l'adresse IP
-                $peer           = getpeername(CLIENT);
-                ($port, $iaddr) = sockaddr_in($peer);
-                $ip             = inet_ntoa($iaddr);
+                my $peer           = getpeername(CLIENT);
+                my ($port, $iaddr) = sockaddr_in($peer);
+                   $ip             = inet_ntoa($iaddr);
 
 
-                @fichier = recupererchemin($req);
-                $exec    = $fichier[0] eq "exec";
-                $fichier = $fichier[1];
+                my @fichier  = recupererchemin($req);
+                my $exec     = $fichier[0] eq "exec";
+                my $fichier  = $fichier[1];
+                my $mimetype = "text/html";
+                my $type     = "get-d";
 
-                repondre404() unless(-f $fichier);
-
-                $reponse = lirefichier($fichier);
+                repondre404() unless(-e $fichier);
 
                 # Si c'est un executable
                 if ($exec) {
                     $reponse  = executer($fichier);
-                    $mimetype = "text/html";
-                    $type     = "get-d";
                 } else {
+                    # Si c'est un dossier et qu'il y a un index
+                    # On définit l'index comme le fichier à lire
+                    $fichier  = $fichier."/".$config{"global"}{"index"} if(-d $fichier && -f $fichier."/".$config{"global"}{"index"});
+
+                    # Si c'est un dossier, on génère le HTML qui liste les fichiers
+                    # Sinon, on lit le fichier
+                    $reponse  = (-d $fichier)
+                        ? indexdossier($fichier)
+                        : lirefichier($fichier)
+                    ;
+
+                    # Gestion du mimetype
                     $mimetype = mimetype($fichier);
+                    repondre404() unless($mimetype =~ m{^(text/.*|image/p?jpeg)$});
+
                     $type     = "get-s";
                 }
-                
-
-                repondre404() unless($mimetype eq "text/html" || $mimetype eq "text/plain" || $mimetype eq "image/jpeg" || $mimetype eq "image/pjpeg");
 
                 # On envoie la réponse
                 printf CLIENT   "HTTP/1.1 200 OK\r\n" .
                                 "Content-Type: $mimetype\r\n" .
                                 "Content-Length: " . length($reponse) . "\r\n\r\n" .
-                                $reponse;
+                                $reponse; 
 
                 ajouterlog($type, $ip, $req, $fichier, 200);
 
@@ -138,8 +149,6 @@ if ($commande eq "start") {
             }
 
             push(@fils, $pid);
-
-            $reqtraitees += 1;
         }
 
         close CLIENT;
@@ -224,22 +233,23 @@ sub recupererchemin
 # Executer CGI
 sub executer
 {
-    return `$_[0]`;
+    my ($fichier) = @_;
+    return `$fichier`;
 }
 
 
 # Réponse en cas de requête invalide
 sub repondre400
 {
-    $reponse =  "<html><body>" .
-                "<h1>400 Bad Request</h1>" .
-                "<h2>Requête invalide</h2>" .
-                "</body></html>";
+    my $reponse = "<!DOCTYPE html><html><head><meta carset='utf-8'><title>400 Bad Request</title></head><body>" .
+                  "<h1>400 Bad Request</h1>" .
+                  "<h2>Requête invalide</h2>" .
+                  "</body></html>";
 
-    printf CLIENT   "HTTP/1.1 400 Bad Request\r\n" .
-                    "Content-Type: text/html; charset=utf-8\r\n" .
-                    "Content-Length: " . length($reponse) . "\r\n\r\n" .
-                    $reponse;
+    printf CLIENT "HTTP/1.1 400 Bad Request\r\n" .
+                  "Content-Type: text/html; charset=utf-8\r\n" .
+                  "Content-Length: " . length($reponse) . "\r\n\r\n" .
+                  $reponse;
 
     close CLIENT;
 
@@ -251,13 +261,13 @@ sub repondre400
 sub repondre404
 {
 	# Par défaut, la réponse sera la page définie dans la configuration
-    $reponse = lirefichier($config{"global"}{"default"});
+    my $reponse = lirefichier($config{"global"}{"default"});
 
     # On envoie la réponse
-    printf CLIENT   "HTTP/1.1 404 Not Found\r\n" .
-                    "Content-Type: text/html\r\n" .
-                    "Content-Length: " . length($reponse) . "\r\n\r\n" .
-                    $reponse;
+    printf CLIENT "HTTP/1.1 404 Not Found\r\n" .
+                  "Content-Type: text/html\r\n" .
+                  "Content-Length: " . length($reponse) . "\r\n\r\n" .
+                  $reponse;
 
     # Ajout au log de la requête effectuée
     ajouterlog("get-s", $ip, $req, $config{"global"}{"default"}, 404);
@@ -315,7 +325,7 @@ sub chargerconfig
 sub pidserv
 {
     open(FILS, "$pidfile");
-    $pid = <FILS>;
+    my $pid = <FILS>;
     close(FILS);
 
     return $pid;
@@ -349,7 +359,7 @@ sub status
 # Retire le fils mort de la liste des fils
 sub retirerfils
 {
-    $pid = wait();
+    my $pid = wait();
     @fils = grep { $_ != $pid } @fils;
 }
 
@@ -357,15 +367,28 @@ sub retirerfils
 # Retourne le contenu d'un fichier
 sub lirefichier
 {
+    my ($fichier) = @_;
     my $contenu;
 
-    open(FICHIER, $_[0]) || return "";
-    while (<FICHIER>) {
-        $contenu .= $_;
-    }
+    open(FICHIER, $fichier) || return repondre404();
+    $contenu .= $_ while(<FICHIER>);
     close(FICHIER);
 
     return $contenu;
+}
+
+
+sub indexdossier
+{
+    my ($dossier) = @_;
+    my $html = "<!DOCTYPE html><html><head><meta carset='utf-8'><title>Index</title></head><body>" .
+               "<h1>Index</h1>";
+
+
+
+    $html .= "</body></html>";
+
+    return $html;
 }
 
 
@@ -373,16 +396,16 @@ sub lirefichier
 # <date>;<type>;<machine>;<requête>;<projection>;<réponse>;
 sub ajouterlog
 {
-    open(LOG, ">>".$config{"global"}{"logfile"});
+    my ($type, @args) = @_;
+    open(LOG, ">>", $config{"global"}{"logfile"});
 
-    if($_[0] eq "start" || $_[0] eq "stop"){
-        @line = (time(), $_[0], "local", $conf{"port"}, "", "", "");
-    } else {
-        @line = (time(), @_);
-    }
+    my @line = ($type eq "start" || $type eq "stop")
+        ? (time(), $type, "local", $conf{"port"}, "", "", "")
+        : (time(), @_)
+    ;
 
     local $, = ";";
-    print LOG @line,"\n";
+    print LOG @line, "\n";
     
     close(LOG);
 }
