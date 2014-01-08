@@ -375,16 +375,19 @@ sub lirefichier
 sub indexdossier
 {
     my ($dossier) = @_;
-    my $html = "<!DOCTYPE html><html><head><meta carset='utf-8'><title>Index</title></head><body>" .
-               "<h1>Index de $dossier</h1>
-               <ul>";
+    my $requete = $req;
 
     local $/ = "/";
     chomp($dossier);
+    chomp($requete);
+
+    my $html = "<!DOCTYPE html><html><head><meta carset='utf-8'><title>Index</title></head><body>" .
+               "<h1>Index de $requete</h1>
+               <ul>";
 
     opendir my $dh, $dossier;
     readdir $dh; # Saute la ligne "." inutile ici
-    $html .= "<li><a href='$req/$_'>$_</a></li>" while(readdir $dh);
+    $html .= "<li><a href='$requete/$_'>$_</a></li>" while(readdir $dh);
     close $dh;
 
     $html .= "</ul></body></html>";
