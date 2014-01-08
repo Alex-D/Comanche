@@ -180,7 +180,7 @@ if ($commande eq "start") {
 # Retourne la route associée à la requête
 sub recupererroute
 {
-    $req = $_[0];
+    my ($req) = @_;
 
     # Gestion du dossier de base
     $basedir = $config{"global"}{"basedir"} if (exists $config{"global"}{"basedir"});
@@ -204,10 +204,11 @@ sub recupererroute
 # Donne le chemin réel du fichier demandé par la requête
 sub recupererchemin
 {
-    my @route = recupererroute($_[0]);
+    my ($fichier) = @_;
+    my @route = recupererroute($fichier);
     my $p1 = qr/$route[1]/;
 
-    $_ = $_[0];
+    $_ = $fichier;
 
     # TODO : faire proprement la transformation avec s/// et l'interprétation du \1
     my @matches = m/$p1/;
