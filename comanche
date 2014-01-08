@@ -92,7 +92,7 @@ if ($commande eq "start") {
             
             if ($pid == 0) {
                 # Traitement de la requête
-                my $req = <CLIENT>;
+                $req = <CLIENT>;
                 while (<CLIENT> =~ /^\r?\n/) {}
 
                 $req =~ /(?-i)GET(?i)\s(\/(?:.*))\sHTTP\/1\.1/ || repondre400();
@@ -100,18 +100,20 @@ if ($commande eq "start") {
 
 
                 # Récupère l'adresse IP
-                my $peer           = getpeername(CLIENT);
-                my ($port, $iaddr) = sockaddr_in($peer);
-                   $ip             = inet_ntoa($iaddr);
+                $peer           = getpeername(CLIENT);
+                ($port, $iaddr) = sockaddr_in($peer);
+                $ip             = inet_ntoa($iaddr);
 
 
-                my @fichier  = recupererchemin($req);
-                my $exec     = $fichier[0] eq "exec";
-                my $fichier  = $fichier[1];
-                my $mimetype = "text/html";
-                my $type     = "get-d";
+                @fichier  = recupererchemin($req);
+                $exec     = $fichier[0] eq "exec";
+                $fichier  = $fichier[1];
+                $mimetype = "text/html";
+                $type     = "get-d";
+
 
                 repondre404() unless(-e $fichier);
+
 
                 # Si c'est un executable
                 if ($exec) {
@@ -320,9 +322,9 @@ sub chargerconfig
 # Récupère le pid du fils
 sub pidserv
 {
-    open(FILS, "$pidfile");
+    open FILS, "<", $pidfile;
     my $pid = <FILS>;
-    close(FILS);
+    close FILS;
 
     return $pid;
 }
