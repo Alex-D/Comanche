@@ -371,7 +371,7 @@ sub repondre400
 # Renvoie une erreur 404
 sub repondre404
 {
-	# Par défaut, la réponse sera la page définie dans la configuration
+    # Par défaut, la réponse sera la page définie dans la configuration
     my ($reponse, $mimetype) = lirefichier($config{"global"}{"default"});
 
     # On envoie la réponse
