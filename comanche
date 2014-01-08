@@ -189,12 +189,26 @@ sub lancerserveur
                     # Filtrage des mimetypes autorisés
                     repondre501() unless($mimetype =~ m{^(text/.*|image/p?jpeg)$});
 
+                    if ($mimetype =~ "image/jpeg") {
+                        open $imageh, $fichier;
+                        $image .= $_ while(<$imageh>);
+                        close $imageh;
+
+                        printf CLIENT "HTTP/1.1 200 OK\r\n" .
+                                      "Content-Type: image/jpeg\r\n" .
+                                      "Content-Length: " . length($reponse) . "\r\n\r\n" .
+                                      $image;
+
+                        close CLIENT;
+                        exit 0;
+                    }
+
                     $type = "get-s";
                 }
 
                 # On envoie la réponse
                 printf CLIENT "HTTP/1.1 200 OK\r\n" .
-                              "Content-Type: $mimetype; charset=utf-8\r\n" .
+                              "Content-Type: $mimetype\r\n" .
                               "Content-Length: " . length($reponse) . "\r\n\r\n" .
                               $reponse;
 
