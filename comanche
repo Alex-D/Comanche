@@ -384,7 +384,7 @@ sub indexdossier
 
     opendir my $dh, $dossier;
     readdir $dh; # Saute la ligne "." inutile ici
-    $html .= "<li><a href='./$_'>$_</a></li>" while(readdir $dh);
+    $html .= "<li><a href='$req/$_'>$_</a></li>" while(readdir $dh);
     close $dh;
 
     $html .= "</ul></body></html>";
