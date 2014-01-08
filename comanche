@@ -285,6 +285,8 @@ sub chargerconfig
     # Vide la configuration
     undef %config;
 
+    local *CONFIG;
+
     # Charge la configuration depuis le fichier comanche.conf
     open CONFIG, "comanche.conf" || die("Impossible de charger le fichier de configuration\n");
     while(<CONFIG>) {
@@ -363,6 +365,7 @@ sub lirefichier
 {
     my ($fichier) = @_;
     my $contenu   = "";
+    local *FICHIER;
 
     open FICHIER, $fichier || return repondre404();
     $contenu .= $_ while(<FICHIER>);
