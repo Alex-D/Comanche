@@ -156,8 +156,8 @@ sub lancerserveur
 
 
                 # Récupère l'adresse IP
-                $peer           = getpeername(CLIENT);
-                ($port, $iaddr) = sockaddr_in($peer);
+                $peer           = getpeername CLIENT;
+                ($pcli, $iaddr) = sockaddr_in($peer);
                 $ip             = inet_ntoa($iaddr);
 
                 # Récupération du nom et du type du fichier
@@ -286,7 +286,7 @@ sub status
 sub retirerfils
 {
     my $pid = wait();
-    @fils = grep { $_ != $pid } @fils;
+    delete $fils{$pid};
 }
 
 
