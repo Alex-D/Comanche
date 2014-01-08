@@ -220,10 +220,6 @@ sub recupererchemin
 
     m/$p2/;
 
-    if (-d $p2) {
-        $p2 = $p2 . "/" . $config{"global"}{"index"};
-    }
-
     return ($route[0], $p2);
 }
 
