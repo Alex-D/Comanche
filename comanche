@@ -31,7 +31,7 @@ $reqtraitees = 0;
 @fils = ();
 
 
-# Traintement de la comande à lancer
+# Traitement de la commande à lancer
 if ($commande eq "start") {
     die("Une autre instance de Commanche est déjà en cours...\n") if(-f $pidfile);
     lancerserveur();    
