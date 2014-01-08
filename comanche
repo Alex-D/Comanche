@@ -416,7 +416,8 @@ sub lirefichier
     my ($fichier) = @_;
     my $contenu;
 
-    open my $fichierh, $fichier || return repondre404();
+    open my $fichierh, $fichier || return "";
+    binmode $fichierh;
     $contenu .= $_ while(<$fichierh>);
     close $fichierh;
 
