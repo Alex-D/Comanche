@@ -187,14 +187,14 @@ sub lancerserveur
                     ;
 
                     # Filtrage des mimetypes autorisés
-                    repondre404() unless($mimetype =~ m{^(text/.*|image/p?jpeg)$});
+                    repondre501() unless($mimetype =~ m{^(text/.*|image/p?jpeg)$});
 
                     $type = "get-s";
                 }
 
                 # On envoie la réponse
                 printf CLIENT "HTTP/1.1 200 OK\r\n" .
-                              "Content-Type: $mimetype\r\n" .
+                              "Content-Type: $mimetype; charset=utf-8\r\n" .
                               "Content-Length: " . length($reponse) . "\r\n\r\n" .
                               $reponse;
 
@@ -380,6 +380,24 @@ sub repondre404
 
     # Ajout au log de la requête effectuée
     ajouterlog("get-s", $ip, $req, $config{"global"}{"default"}, 404);
+
+    close CLIENT;
+
+    exit 0;
+}
+
+
+# Réponse aux fonctions non-implémentées
+sub repondre501
+{
+    my $reponse = "<!DOCTYPE html><html><head><meta carset='utf-8'><title>501 Not Implemented</title></head><body>" .
+                  "<h1>501 Not Implemented</h1>" .
+                  "</body></html>";
+
+    printf CLIENT "HTTP/1.1 501 Not Implemented\r\n" .
+                  "Content-Type: text/html; charset=utf-8\r\n" .
+                  "Content-Length: " . length($reponse) . "\r\n\r\n" .
+                  $reponse;
 
     close CLIENT;
 
