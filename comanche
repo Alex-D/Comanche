@@ -228,8 +228,8 @@ sub recupererchemin
 # Executer CGI
 sub executer
 {
-    my ($fichier) = @_;
-    return `$fichier`;
+    my ($exec) = @_;
+    return `$exec`;
 }
 
 
@@ -286,11 +286,9 @@ sub chargerconfig
     # Vide la configuration
     undef %config;
 
-    local *CONFIG;
-
     # Charge la configuration depuis le fichier comanche.conf
-    open CONFIG, "comanche.conf" || die("Impossible de charger le fichier de configuration\n");
-    while(<CONFIG>) {
+    open my $configh, "comanche.conf" || die("Impossible de charger le fichier de configuration\n");
+    while(<$configh>) {
         if(/^set\s+(.+)\s+(.+)/){
             $cle    = $1;
             $valeur = $2;
@@ -314,16 +312,16 @@ sub chargerconfig
             push(@{$config{"rewriterules"}}, $1);
         } 
     }
-    close CONFIG;
+    close $configh;
 }
 
 
 # Récupère le pid du fils
 sub pidserv
 {
-    open FILS, "<", $pidfile;
-    my $pid = <FILS>;
-    close FILS;
+    open my $filsh, "<", $pidfile;
+    my $pid = <$filsh>;
+    close $filsh;
 
     return $pid;
 }
@@ -365,12 +363,11 @@ sub retirerfils
 sub lirefichier
 {
     my ($fichier) = @_;
-    my $contenu   = "";
-    local *FICHIER;
+    my $contenu;
 
-    open FICHIER, $fichier || return repondre404();
-    $contenu .= $_ while(<FICHIER>);
-    close FICHIER;
+    open my $fichierh, $fichier || return repondre404();
+    $contenu .= $_ while(<$fichierh>);
+    close $fichierh;
 
     return ($contenu, mimetype($fichier));
 }
@@ -389,11 +386,10 @@ sub indexdossier
                "<h1>Index de $requete</h1>
                <ul>";
 
-    local *DIR;
-    opendir DIR, $dossier;
-    my @files = sort(grep(!/^\.$/, readdir DIR)); # Retire la ligne "." + tri
-    $html .= "<li><a href='$requete/$_'>$_</a></li>" for (@files);
-    close DIR;
+    opendir my $dirh, $dossier;
+    my @fichiers = sort(grep(!/^\.$/, readdir $dirh)); # Retire la ligne "." + tri
+    $html .= "<li><a href='$requete/$_'>$_</a></li>" for (@fichiers);
+    close $dirh;
 
     $html .= "</ul></body></html>";
 
@@ -407,7 +403,7 @@ sub ajouterlog
 {
     my ($type, @args) = @_;
 
-    open LOG, ">>", $config{"global"}{"logfile"};
+    open my $logh, ">>", $config{"global"}{"logfile"};
 
     my @line = ($type eq "start" || $type eq "stop")
         ? (time(), $type, "local", $conf{"port"}, "", "", "")
@@ -415,7 +411,7 @@ sub ajouterlog
     ;
 
     local $, = ";";
-    print LOG @line, "\n";
+    print $logh @line, "\n";
     
-    close LOG;
+    close $logh;
 }
