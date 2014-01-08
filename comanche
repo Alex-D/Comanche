@@ -1,5 +1,10 @@
 #!/usr/bin/perl
 
+##### Auteurs #####
+## Romain Lefevre
+## Alexandre Demode
+
+
 use Socket;
 use File::MimeInfo;
 
@@ -13,29 +18,77 @@ $commande = $ARGV[0]; # start, stop, status, reload
 
 
 # Configuration
-$pidfile = ".pid";
+$pidfile = ".comanche.pid";
 chargerconfig();
 
 
 # Compteurs
-$reqrecues      = 0;
-$reqtraitees    = 0;
+$reqrecues = 0;
+$reqtraitees = 0;
 
 
 # Liste des pid des fils
 @fils = ();
 
 
-
+# Traintement de la comande à lancer
 if ($commande eq "start") {
     die("Une autre instance de Commanche est déjà en cours...\n") if(-f $pidfile);
+    lancerserveur();    
 
+} elsif ($commande eq "status") {
+    kill USR1, pidserv() || die("Le serveur n'est pas lancé\n");
+
+} elsif ($commande eq "reload") {
+    kill HUP, pidserv() || die("Le serveur n'est pas lancé\n");
+
+} elsif ($commande eq "stop") {
+    kill QUIT, pidserv() || die("Le serveur n'est pas lancé\n");
+
+    ajouterlog("stop");
+
+    unlink($pidfile);
+} else {
+    die("Paramètre non pris en charge. Paramètres autorisés : start, stop, status, reload\n");
+}
+
+
+
+
+
+# Récupère le pid du fils
+sub pidserv
+{
+    open my $filsh, "<", $pidfile;
+    my $pid = <$filsh>;
+    close $filsh;
+
+    return $pid;
+}
+
+# Arrête le serveur brutalement en affichant un message d'erreur
+# Supprime le pidfile de façon à pouvoir relancer le serveur
+sub sockerr
+{
+    my ($err) = @_;
+    unlink $pidfile;
+    die $err . "\n";
+}
+
+
+
+
+
+# Lance le serveur
+sub lancerserveur
+{
     # Crée un fork et tue le père pour rendre la main
     $pid = fork;
     if ($pid != 0) {
         # Stock le pid du fils
         open  PID, ">", $pidfile;
         print PID $pid;
+        chmod 0400, $pidfile;
         close PID;
 
         # Tue le père
@@ -45,11 +98,11 @@ if ($commande eq "start") {
     ajouterlog("start");
 
 
-    # Traitement des signaux
+    # Traitement des signaux : définition des handlers
     #   USR1 => status
     $SIG{USR1} = \&status;
     #   HUP => reload
-    $SIG{HUP}  = \&reload;
+    $SIG{HUP}  = \&chargerconfig;
     #   QUIT => stop
     $SIG{QUIT} = \&stop;
     #   CHLD => retirerfils
@@ -61,22 +114,23 @@ if ($commande eq "start") {
     setsockopt(SERVEUR, SOL_SOCKET, SO_RUSEADDR, 1);
 
     $port = $config{"global"}{"port"};
-    $addr = sockaddr_in($port, INADDR_ANY) || do { unlink($pidfile); die("sockaddr_in\n"); };
-    bind(SERVEUR, $addr) || do { unlink($pidfile); die("Le port $port est déjà utilisé\n"); };
-    listen(SERVEUR, SOMAXCONN) || do { unlink($pidfile); die("listen error\n"); };
+    $addr = sockaddr_in($port, INADDR_ANY)  || sockerr("sockaddr_in error");
+    bind(SERVEUR, $addr)                    || sockerr("Le port $port est déjà utilisé");
+    listen(SERVEUR, SOMAXCONN)              || sockerr("listen error");
 
     printf "Serveur lancé sur le port $port\n";
 
     $started = 1;
 
-    while (accept(CLIENT, SERVEUR) or do { last if $started eq 0; next if $!{EINTR}; die("Accept impossible : $!\n"); }) {
+    while (accept(CLIENT, SERVEUR) or do { last if $started eq 0; next if $!{EINTR}; sockerr("Accept impossible ($!)"); }) {
         $reqrecues += 1;
 
         autoflush CLIENT 1;
 
 
         if ($#fils >= $config{"global"}{"clients"}) {
-            my $reponse =   "<!DOCTYPE html><html><head><meta carset='utf-8'><title>503 Service Unavailable</title></head><body>" .
+            # Erreur 503 s'il y a trop de clients simultannés
+            my $reponse =   "<!DOCTYPE html><html><head><meta charset='utf-8'><title>503 Service Unavailable</title></head><body>" .
                             "<h1>503 Service Unavailable</h1>" .
                             "<h2>Trop de connexions simultanées, réessayez plus tard</h2>" .
                             "</body></html>";
@@ -86,12 +140,14 @@ if ($commande eq "start") {
                             "Content-Length: " . length($reponse) . "\r\n\r\n" .
                             $reponse;
         } else {
+            # Traitement de la requête sinon
             $reqtraitees += 1;
 
+            # Création d'un ouvrier
             $pid = fork;
             
             if ($pid == 0) {
-                # Traitement de la requête
+                # Analyse de la requête
                 $req = <CLIENT>;
                 while (<CLIENT> =~ /^\r?\n/) {}
 
@@ -104,7 +160,7 @@ if ($commande eq "start") {
                 ($port, $iaddr) = sockaddr_in($peer);
                 $ip             = inet_ntoa($iaddr);
 
-
+                # Récupération du nom et du type du fichier
                 @fichier  = recupererchemin($req);
                 $exec     = $fichier[0] eq "exec";
                 $fichier  = $fichier[1];
@@ -112,6 +168,7 @@ if ($commande eq "start") {
                 $type     = "get-d";
 
 
+                # Si le fichier n'existe pas, on retourne une erreur 404
                 repondre404() unless(-e $fichier);
 
 
@@ -130,21 +187,21 @@ if ($commande eq "start") {
                         : lirefichier($fichier)
                     ;
 
-                    # Gestion du mimetype
+                    # Filtrage des mimetypes autorisés
                     repondre404() unless($mimetype =~ m{^(text/.*|image/p?jpeg)$});
 
-                    $type     = "get-s";
+                    $type = "get-s";
                 }
 
                 # On envoie la réponse
-                printf CLIENT   "HTTP/1.1 200 OK\r\n" .
-                                "Content-Type: $mimetype\r\n" .
-                                "Content-Length: " . length($reponse) . "\r\n\r\n" .
-                                $reponse; 
-
-                ajouterlog($type, $ip, $req, $fichier, 200);
+                printf CLIENT "HTTP/1.1 200 OK\r\n" .
+                              "Content-Type: $mimetype\r\n" .
+                              "Content-Length: " . length($reponse) . "\r\n\r\n" .
+                              $reponse;
 
                 close CLIENT;
+
+                ajouterlog($type, $ip, $req, $fichier, 200);
 
                 exit 0;
             }
@@ -157,25 +214,86 @@ if ($commande eq "start") {
 
     close CLIENT;
     close SERVEUR;
-    
-} elsif ($commande eq "status") {
-    # status
-    kill USR1, pidserv() || die("Le serveur n'est pas lancé\n");
-} elsif ($commande eq "reload") {
-    # reload
-    kill HUP, pidserv() || die("Le serveur n'est pas lancé\n");
-} elsif ($commande eq "stop") {
-    # stop
-    kill QUIT, pidserv() || die("Le serveur n'est pas lancé\n");
-
-    ajouterlog("stop");
-
-    unlink($pidfile);
-} else {
-    die("Paramètre non pris en charge. Paramètres autorisés : start, stop, status, reload\n");
 }
 
 
+
+
+
+#########  HANDLERS  #######################################################################################
+
+# Charge la configuration
+sub chargerconfig
+{
+    # Vide la configuration
+    undef %config;
+
+    # Charge la configuration depuis le fichier comanche.conf
+    open my $configh, "comanche.conf" || die("Impossible de charger le fichier de configuration\n");
+    while(<$configh>) {
+        if(/^set\s+(.+)\s+(.+)/){
+            $cle    = $1;
+            $valeur = $2;
+
+            if($cle =~ /port/){         # Validation du port TCP
+                die("[Erreur configuration] Port invalide\n") unless($valeur =~ /[\d+]/ && $valeur >= 1 && $valeur <= 65535);
+            } elsif($cle =~ /clients/){ # Validation du nombre de clients
+                die("[Erreur configuration] Nombre de clients invalide\n") unless($valeur =~ /\d+/);
+            } elsif($cle =~ /default/){ # Validation du fichier par défaut
+                die("[Erreur configuration] Fichier default inaccessible\n") unless(-f $valeur);
+            } elsif($cle =~ /basedir/){ # Validation du dossier de base
+                die("[Erreur configuration] Dossier de base inaccessible\n") unless(-d $valeur);
+            }
+
+            $config{"global"}{$cle} = $valeur;
+        } elsif (/^route\s+(.+?)\s+to\s+(.+)/) {
+            $config{"routes"}{$1} = $2;
+            push(@{$config{"rewriterules"}}, $1);
+        } elsif (/^exec\s+(.+?)\s+from\s+(.+)/) {
+            $config{"exec"}{$1} = $2;
+            push(@{$config{"rewriterules"}}, $1);
+        } 
+    }
+    close $configh;
+}
+
+
+# Arrête le serveur
+sub stop
+{
+    $started = 0;
+
+    while (wait != -1) {}
+}
+
+
+# Affiche le status du serveur
+sub status
+{
+    local $, = ", ";
+    print "PID du processus principal : $$\n" .
+          "Nombre de requêtes :\n" .
+          "\treçues : $reqrecues\n" .
+          "\ttraitées : $reqtraitees\n" .
+          "Nombre d'ouvriers actifs : $#fils\n";
+    print @fils;
+
+    close CLIENT;
+}
+
+
+# Retire le fils mort de la liste des fils
+sub retirerfils
+{
+    my $pid = wait();
+    @fils = grep { $_ != $pid } @fils;
+}
+
+
+
+
+
+#########  ROUTAGE  #######################################################################################
 
 # Retourne la route associée à la requête
 sub recupererroute
@@ -225,13 +343,10 @@ sub recupererchemin
 }
 
 
-# Executer CGI
-sub executer
-{
-    my ($exec) = @_;
-    return `$exec`;
-}
 
+
+
+#########  ERREURS HTTP  ###################################################################################
 
 # Réponse en cas de requête invalide
 sub repondre400
@@ -273,91 +388,10 @@ sub repondre404
 }
 
 
-# Recharge la configuration
-sub reload
-{
-    chargerconfig();
-}
 
 
-# Charge la configuration
-sub chargerconfig
-{
-    # Vide la configuration
-    undef %config;
 
-    # Charge la configuration depuis le fichier comanche.conf
-    open my $configh, "comanche.conf" || die("Impossible de charger le fichier de configuration\n");
-    while(<$configh>) {
-        if(/^set\s+(.+)\s+(.+)/){
-            $cle    = $1;
-            $valeur = $2;
-
-            if($cle =~ /port/){         # Validation du port TCP
-                die("[Erreur configuration] Port invalide\n") unless($valeur =~ /[\d+]/ && $valeur >= 1 && $valeur <= 65535);
-            } elsif($cle =~ /clients/){ # Validation du nombre de clients
-                die("[Erreur configuration] Nombre de clients invalide\n") unless($valeur =~ /\d+/);
-            } elsif($cle =~ /default/){ # Validation du fichier par défaut
-                die("[Erreur configuration] Fichier default inaccessible\n") unless(-f $valeur);
-            } elsif($cle =~ /basedir/){ # Validation du dossier de base
-                die("[Erreur configuration] Dossier de base inaccessible\n") unless(-d $valeur);
-            }
-
-            $config{"global"}{$cle} = $valeur;
-        } elsif (/^route\s+(.+?)\s+to\s+(.+)/) {
-            $config{"routes"}{$1} = $2;
-            push(@{$config{"rewriterules"}}, $1);
-        } elsif (/^exec\s+(.+?)\s+from\s+(.+)/) {
-            $config{"exec"}{$1} = $2;
-            push(@{$config{"rewriterules"}}, $1);
-        } 
-    }
-    close $configh;
-}
-
-
-# Récupère le pid du fils
-sub pidserv
-{
-    open my $filsh, "<", $pidfile;
-    my $pid = <$filsh>;
-    close $filsh;
-
-    return $pid;
-}
-
-
-# Arrête le serveur
-sub stop
-{
-    $started = 0;
-
-    while (wait != -1) {}
-}
-
-
-# Affiche le status du serveur
-sub status
-{
-    local $, = ", ";
-    print "PID du processus principal : $$\n" .
-          "Nombre de requêtes :\n" .
-          "\treçues : $reqrecues\n" .
-          "\ttraitées : $reqtraitees\n" .
-          "Nombre d'ouvriers actifs : $#fils\n";
-    print @fils;
-
-    close CLIENT;
-}
-
-
-# Retire le fils mort de la liste des fils
-sub retirerfils
-{
-    my $pid = wait();
-    @fils = grep { $_ != $pid } @fils;
-}
-
+#########  OUTILS  #######################################################################################
 
 # Retourne le contenu d'un fichier
 sub lirefichier
@@ -373,6 +407,7 @@ sub lirefichier
 }
 
 
+# Liste le contenu d'un dossier, formaté en HTML
 sub indexdossier
 {
     my ($dossier) = @_;
@@ -414,4 +449,13 @@ sub ajouterlog
     print $logh @line, "\n";
     
     close $logh;
+}
+
+
+# Executer CGI
+# TODO : gérer les paramètres
+sub executer
+{
+    my ($exec) = @_;
+    return `$exec`;
 }
