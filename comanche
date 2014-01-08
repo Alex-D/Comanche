@@ -377,14 +377,14 @@ sub indexdossier
     my ($dossier) = @_;
     my $html = "<!DOCTYPE html><html><head><meta carset='utf-8'><title>Index</title></head><body>" .
                "<h1>Index de $dossier</h1>
-               <ul>
-                  <li><a href='./..'>..</a></li>";
+               <ul>";
 
     local $/ = "/";
     chomp($dossier);
 
     opendir my $dh, $dossier;
-    $html .= "<li><a href='$dossier/$_'>$_</a></li>" while(readdir $dh);
+    readdir $dh; # Saute la ligne "." inutile ici
+    $html .= "<li><a href='$_'>$_</a></li>" while(readdir $dh);
     close $dh;
 
     $html .= "</ul></body></html>";
