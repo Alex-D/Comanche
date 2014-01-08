@@ -345,7 +345,7 @@ sub status
           "Nombre de requêtes :\n" .
           "\treçues : $reqrecues\n" .
           "\ttraitées : $reqtraitees\n" .
-          "Nombre d'ouvriers actifs : ". (($#fils > 0) ? $#fils : "aucun") ."\n";
+          "Nombre d'ouvriers actifs : $#fils\n";
     print @fils;
 
     close CLIENT;
