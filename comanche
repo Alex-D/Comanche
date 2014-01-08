@@ -332,12 +332,14 @@ sub recupererchemin
     # TODO : faire proprement la transformation avec s/// et l'interprétation du \1
     my @matches = m/$p1/;
     my $p2 = $route[2];
-
+	
+	# Parcours tous les matchs pour les remplacer dans la partie droite de l'expression
     for (@matches) {
 	   $m = $matches[$i++];
 	   $p2 =~ s{\\$i}{$m};
     }
 
+	# Rend le remplacement effectif
     m/$p2/;
 
     return ($route[0], $p2);
