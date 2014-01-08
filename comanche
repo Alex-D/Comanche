@@ -162,7 +162,6 @@ sub lancerserveur
 
                 # Récupération du nom et du type du fichier
                 @fichier  = recupererchemin($req);
-                $exec     = $fichier[0] eq "exec";
                 $fichier  = $fichier[1];
                 $mimetype = "text/html";
                 $type     = "get-d";
@@ -173,7 +172,7 @@ sub lancerserveur
 
 
                 # Si c'est un executable
-                if ($exec) {
+                if ($fichier[0] eq "exec") {
                     $reponse = executer($fichier);
                 } else {
                     # Si c'est un dossier et qu'il y a un index
