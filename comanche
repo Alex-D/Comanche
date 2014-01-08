@@ -385,10 +385,11 @@ sub indexdossier
                "<h1>Index de $requete</h1>
                <ul>";
 
-    opendir my $dh, $dossier;
-    readdir $dh; # Saute la ligne "." inutile ici
-    $html .= "<li><a href='$requete/$_'>$_</a></li>" while(readdir $dh);
-    close $dh;
+    local *DIR;
+    opendir DIR, $dossier;
+    my @files = sort(grep(!/^\.$/, readdir DIR); # Retire la ligne "." + tri
+    $html .= "<li><a href='$requete/$_'>$_</a></li>" for (@files);
+    close DIR;
 
     $html .= "</ul></body></html>";
 
