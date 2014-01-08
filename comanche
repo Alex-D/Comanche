@@ -387,7 +387,7 @@ sub indexdossier
 
     local *DIR;
     opendir DIR, $dossier;
-    my @files = sort(grep(!/^\.$/, readdir DIR); # Retire la ligne "." + tri
+    my @files = sort(grep(!/^\.$/, readdir DIR)); # Retire la ligne "." + tri
     $html .= "<li><a href='$requete/$_'>$_</a></li>" for (@files);
     close DIR;
 
