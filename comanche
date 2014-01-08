@@ -194,8 +194,9 @@ sub lancerserveur
 
                 # On envoie la réponse
                 printf CLIENT "HTTP/1.1 200 OK\r\n" .
-                              "Content-Length: " . length($reponse) . "\r\n\r\n" .
+                              "Content-Length: " . length($reponse) . "\r\n" .
                               "Content-Type: $mimetype\r\n" .
+                              "\r\n" .
                               $reponse;
 
                 close CLIENT;
