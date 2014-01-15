@@ -163,6 +163,7 @@ sub lancerserveur
                 # Récupération du nom et du type du fichier
                 @fichier  = recupererchemin($req);
                 $fichier  = $fichier[1];
+                $args     = $fichier[2];
                 $mimetype = "text/html";
                 $type     = "get-d";
 
@@ -173,6 +174,7 @@ sub lancerserveur
 
                 # Si c'est un executable
                 if ($fichier[0] eq "exec") {
+                    $ENV{QUERY_STRING} = $args;
                     $reponse = executer($fichier);
                 } else {
                     # Si c'est un dossier et qu'il y a un index
@@ -323,26 +325,27 @@ sub recupererroute
 # Donne le chemin réel du fichier demandé par la requête
 sub recupererchemin
 {
-    my ($fichier) = @_;
-    my @route = recupererroute($fichier);
-    my $p1 = qr/$route[1]/;
+    my ($requete) = @_;
+    my args       = ($requete =~ /.*\?(.*)/) ? $1 : "";
+    my @route     = recupererroute($requete);
+    my $p1        = qr/$route[1]/;
 
-    $_ = $fichier;
+    $_ = $requete;
 
-    # TODO : faire proprement la transformation avec s/// et l'interprétation du \1
+    # Amélioration possible : faire proprement la transformation avec s/// et l'interprétation du \1
     my @matches = m/$p1/;
-    my $p2 = $route[2];
+    my $p2      = $route[2];
 	
 	# Parcours tous les matchs pour les remplacer dans la partie droite de l'expression
     for (@matches) {
-	   $m = $matches[$i++];
+	   $m  = $matches[$i++];
 	   $p2 =~ s{\\$i}{$m};
     }
 
 	# Rend le remplacement effectif
     m/$p2/;
 
-    return ($route[0], $p2);
+    return ($route[0], $p2, $args);
 }
 
 
