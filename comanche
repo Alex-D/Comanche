@@ -232,14 +232,16 @@ sub chargerconfig
     # Charge la configuration depuis le fichier comanche.conf
     open my $configh, "comanche.conf" || die("Impossible de charger le fichier de configuration\n");
     while(<$configh>) {
-        if(/^set\s+(.+)\s+(.+)/){
+		next if (/^\s*(#.*)?$/); # Ignore les commentaires et lignes vides
+
+        if (/^\s*set\s+(.+)\s+([^\s#]+)(?:\s*#.*)?$/){
             $cle    = $1;
             $valeur = $2;
 
             if($cle =~ /port/){         # Validation du port TCP
                 die("[Erreur configuration] Port invalide\n") unless($valeur =~ /[\d+]/ && $valeur >= 1 && $valeur <= 65535);
             } elsif($cle =~ /clients/){ # Validation du nombre de clients
-                die("[Erreur configuration] Nombre de clients invalide\n") unless($valeur =~ /\d+/);
+                die("[Erreur configuration] Nombre de clients invalide\n")   unless($valeur =~ /\d+/);
             } elsif($cle =~ /default/){ # Validation du fichier par défaut
                 die("[Erreur configuration] Fichier default inaccessible\n") unless(-f $valeur);
             } elsif($cle =~ /basedir/){ # Validation du dossier de base
@@ -247,13 +249,15 @@ sub chargerconfig
             }
 
             $config{"global"}{$cle} = $valeur;
-        } elsif (/^route\s+(.+?)\s+to\s+(.+)/) {
+        } elsif (/^\s*route\s+(.+?)\s+to\s+([^\s#]+)(?:\s*#.*)?$/) {
             $config{"routes"}{$1} = $2;
             push(@{$config{"rewriterules"}}, $1);
-        } elsif (/^exec\s+(.+?)\s+from\s+(.+)/) {
+        } elsif (/^\s*exec\s+(.+?)\s+from\s+([^\s#]+)(?:\s*#.*)?$/) {
             $config{"exec"}{$1} = $2;
             push(@{$config{"rewriterules"}}, $1);
-        } 
+        } else {
+			die "[Erreur configuration] La ligne $. est invalide : '$_'\n";
+		}
     }
     close $configh;
 }
