@@ -7,6 +7,8 @@
 
 use Socket;
 use File::MimeInfo;
+use File::Basename;
+use Cwd 'abs_path';
 
 
 # Quitte s'il manque le paramètre
@@ -17,8 +19,11 @@ die("Option nécessaire parmi : start, stop, status, reload\n") if ($#ARGV < 0);
 $commande = $ARGV[0]; # start, stop, status, reload
 
 
+# Chemin réel du dossier de comanche
+$path = dirname(abs_path($0));
+
 # Configuration
-$pidfile = ".comanche.pid";
+$pidfile = "$path/.comanche.pid";
 chargerconfig();
 
 
@@ -128,7 +133,7 @@ sub lancerserveur
         autoflush CLIENT 1;
 
 
-        if ($#fils >= $config{"global"}{"clients"}) {
+        if (scalar @fils >= $config{"global"}{"clients"}) {
             # Erreur 503 s'il y a trop de clients simultannés
             my $reponse =   "<!DOCTYPE html><html><head><meta charset='utf-8'><title>503 Service Unavailable</title></head><body>" .
                             "<h1>503 Service Unavailable</h1>" .
@@ -179,7 +184,8 @@ sub lancerserveur
                 } else {
                     # Si c'est un dossier et qu'il y a un index
                     # On définit l'index comme le fichier à lire
-                    $fichier = $fichier."/".$config{"global"}{"index"} if(-d $fichier && -f $fichier."/".$config{"global"}{"index"});
+                    $fichier = $fichier."/".$config{"global"}{"index"} if(-d $fichier && -f $fichier."/".$config{"global"}{"index"});                    
+                    $fichier =~ s/\/+/\//g;
 
                     # Si c'est un dossier, on génère le HTML qui liste les fichiers
                     # Sinon, on lit le fichier
@@ -230,11 +236,11 @@ sub chargerconfig
 {
     # Vide la configuration
     undef %config;
-
+    
     # Charge la configuration depuis le fichier comanche.conf
-    open my $configh, "comanche.conf" || die("Impossible de charger le fichier de configuration\n");
+    open my $configh, "<", "$path/comanche.conf" || die("Impossible de charger le fichier de configuration\n");
     while(<$configh>) {
-		next if (/^\s*(#.*)?$/); # Ignore les commentaires et lignes vides
+        next if (/^\s*(#.*)?$/); # Ignore les commentaires et lignes vides
 
         if (/^\s*set\s+(.+)\s+([^\s#]+)(?:\s*#.*)?$/){
             $cle    = $1;
@@ -258,8 +264,8 @@ sub chargerconfig
             $config{"exec"}{$1} = $2;
             push(@{$config{"rewriterules"}}, $1);
         } else {
-			die "[Erreur configuration] La ligne $. est invalide : '$_'\n";
-		}
+            die "[Erreur configuration] La ligne $. est invalide : '$_'\n";
+        }
     }
     close $configh;
 }
@@ -278,11 +284,12 @@ sub stop
 sub status
 {
     local $, = ", ";
+    autoflush STDOUT 1;
     print "PID du processus principal : $$\n" .
           "Nombre de requêtes :\n" .
           "\treçues : $reqrecues\n" .
           "\ttraitées : $reqtraitees\n" .
-          "Nombre d'ouvriers actifs : $#fils\n";
+          "Nombre d'ouvriers actifs : " . @fils . "\n";
     print @fils;
 
     close CLIENT;
@@ -314,9 +321,13 @@ sub recupererroute
     for $route (@{$config{"rewriterules"}}) {
         if ($req =~ /$route/) {
             if (exists $config{"routes"}{$route}) {
-                return ("route", $route, $basedir . $config{"routes"}{$route});
+                $chemin = $basedir . $config{"routes"}{$route};
+                $chemin =~ s!\/+!\/!g;
+                return ("route", $route, $chemin);
             } elsif (exists $config{"exec"}{$route}) {
-                return ("exec", $route, $basedir . $config{"exec"}{$route});
+		$chemin = $basedir . $config{"exec"}{$route};
+		$chemin =~ s!\/+!\/!g;
+                return ("exec", $route, $chemin);
             }
         }
     }
@@ -330,7 +341,7 @@ sub recupererroute
 sub recupererchemin
 {
     my ($requete) = @_;
-    my args       = ($requete =~ /.*\?(.*)/) ? $1 : "";
+    my $args      = ($requete =~ /.*\?(.*)/) ? $1 : "";
     my @route     = recupererroute($requete);
     my $p1        = qr/$route[1]/;
 
@@ -466,7 +477,7 @@ sub ajouterlog
 {
     my ($type, @args) = @_;
 
-    open my $logh, ">>", $config{"global"}{"logfile"};
+    open my $logh, ">>", $path."/".$config{"global"}{"logfile"};
 
     my @line = ($type eq "start" || $type eq "stop")
         ? (time(), $type, "local", $conf{"port"}, "", "", "")
